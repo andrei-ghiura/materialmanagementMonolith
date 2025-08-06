@@ -1,0 +1,217 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Material Manager API",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/materials": {
+            "get": {
+                "summary": "Get all materials",
+                "responses": {
+                    "200": {
+                        "description": "List of materials",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Material"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "summary": "Create a new material",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Material"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Material created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Material"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/materials/{id}": {
+            "get": {
+                "summary": "Get a material by ID",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Material found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Material"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Material not found"
+                    }
+                }
+            },
+            "put": {
+                "summary": "Update a material by ID",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Material"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Material updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Material"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Material not found"
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete a material by ID",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Material deleted"
+                    },
+                    "404": {
+                        "description": "Material not found"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Material": {
+                "type": "object",
+                "properties": {
+                    "humanId": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "cod_unic_aviz": {
+                        "type": "string",
+                        "maxLength": 40
+                    },
+                    "specie": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "string",
+                        "format": "date"
+                    },
+                    "apv": {
+                        "type": "string",
+                        "maxLength": 40
+                    },
+                    "lat": {
+                        "type": "string"
+                    },
+                    "log": {
+                        "type": "string"
+                    },
+                    "nr_placuta_rosie": {
+                        "type": "string"
+                    },
+                    "lungime": {
+                        "type": "string"
+                    },
+                    "diametru": {
+                        "type": "string"
+                    },
+                    "volum_placuta_rosie": {
+                        "type": "string"
+                    },
+                    "volum_total": {
+                        "type": "string"
+                    },
+                    "volum_net_paletizat": {
+                        "type": "string"
+                    },
+                    "volum_brut_paletizat": {
+                        "type": "string"
+                    },
+                    "nr_bucati": {
+                        "type": "string"
+                    },
+                    "observatii": {
+                        "type": "string",
+                        "maxLength": 1024
+                    },
+                    "componente": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "specie"
+                ]
+            }
+        }
+    }
+}
