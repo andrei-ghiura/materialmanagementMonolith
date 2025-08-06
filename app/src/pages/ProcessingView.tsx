@@ -1,13 +1,31 @@
 import { IonButton, IonButtons, IonContent, IonHeader, IonIcon, IonInput, IonItem, IonItemDivider, IonLabel, IonList, IonModal, IonPage, IonSelect, IonSelectOption, IonTitle, IonToolbar, useIonAlert } from '@ionic/react';
-import { add, checkmark, close, qrCode, save, trash } from 'ionicons/icons';
-import { useEffect, useRef, useState } from 'react';
+import { add, checkmark, close, qrCode, save } from 'ionicons/icons';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useIonRouter, useIonViewWillEnter } from '@ionic/react';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Material } from '../types';
 import { getAll, getById } from '../../api/materials';
-import { materialTypes, woodSpecies } from '../selectOptions';
+import { processMaterials as processAPI } from '../../api/materials';
+import { MaterialMappings } from '../config/materialMappings';
 import MaterialItem from '../components/MaterialItem';
+import apiClient from '../../api/apiClient';
+
+// Processing type interface (matches backend)
+interface ProcessingType {
+    id: string;
+    label: string;
+    description: string;
+    sourceTypes: string[];
+    resultType: string;
+    carryOverFields: Array<{
+        sourceField: string;
+        resultField: string;
+        carryOverStrategy: string;
+        isRequired: boolean;
+        transform?: ((value: unknown, sourceMaterials: Material[]) => unknown);
+    }>;
+}
 
 // Check if we're on web or native
 const isWeb = () => {
@@ -43,8 +61,101 @@ const ProcessingView: React.FC = () => {
     const [outputConfig, setOutputConfig] = useState({
         count: 1,
         type: '',
-        specie: ''
+        specie: '',
+        processingType: '' // Added processing type
     });
+    const [selectedProcessingType, setSelectedProcessingType] = useState<ProcessingType | null>(null);
+    const [allProcessingTypes, setAllProcessingTypes] = useState<ProcessingType[]>([]);
+
+    // Helper functions to work with processing types
+    const getProcessingType = useCallback((id: string): ProcessingType | undefined => {
+        return allProcessingTypes.find(p => p.id === id);
+    }, [allProcessingTypes]);
+
+    // Load all processing types from backend
+    const loadProcessingTypes = async () => {
+        try {
+            const response = await apiClient.get('/processing-types');
+            setAllProcessingTypes(response.data);
+        } catch (error) {
+            console.error('Failed to load processing types:', error);
+        }
+    };
+
+    // Track available wood species from selected materials
+    const availableWoodSpecies = selectedMaterials.reduce((species, material) => {
+        if (material.specie && !species.includes(material.specie)) {
+            species.push(material.specie);
+        }
+        return species;
+    }, [] as string[]);
+
+    // Auto-select wood species if there's only one
+    useEffect(() => {
+        if (availableWoodSpecies.length === 1 && outputConfig.specie !== availableWoodSpecies[0]) {
+            setOutputConfig(prev => ({
+                ...prev,
+                specie: availableWoodSpecies[0]
+            }));
+        }
+    }, [availableWoodSpecies, outputConfig.specie]);
+
+    // Validate selected materials against processing type when materials change
+    useEffect(() => {
+        if (selectedMaterials.length > 0 && selectedProcessingType) {
+            // Check if all materials are compatible with the selected processing type
+            const incompatibleMaterials = selectedMaterials.filter(material =>
+                !selectedProcessingType.sourceTypes.includes(material.type)
+            );
+
+            if (incompatibleMaterials.length > 0) {
+                // Remove incompatible materials and show alert
+                const compatibleMaterials = selectedMaterials.filter(material =>
+                    selectedProcessingType.sourceTypes.includes(material.type)
+                );
+
+                setSelectedMaterials(compatibleMaterials);
+
+                presentAlert({
+                    header: 'Materiale incompatibile',
+                    message: `${incompatibleMaterials.length} materiale au fost eliminate deoarece nu sunt compatibile cu tipul de procesare selectat.`,
+                    buttons: ['OK'],
+                });
+            }
+
+            // Check if all remaining materials are the same type
+            if (selectedMaterials.length > 1) {
+                const firstType = selectedMaterials[0].type;
+                const allSameType = selectedMaterials.every(m => m.type === firstType);
+
+                if (!allSameType) {
+                    presentAlert({
+                        header: 'Materiale incompatibile',
+                        message: 'Toate materialele selectate trebuie să fie de același tip.',
+                        buttons: ['OK'],
+                    });
+                }
+            }
+        }
+    }, [selectedMaterials, selectedProcessingType, presentAlert]);    // Update selected processing type when processingType changes
+    useEffect(() => {
+        if (outputConfig.processingType) {
+            const processingType = getProcessingType(outputConfig.processingType);
+            setSelectedProcessingType(processingType || null);
+
+            // Auto-set output material type based on processing type
+            if (processingType) {
+                setOutputConfig(prev => ({
+                    ...prev,
+                    type: processingType.resultType === 'same'
+                        ? (selectedMaterials[0]?.type || '')
+                        : processingType.resultType
+                }));
+            }
+        } else {
+            setSelectedProcessingType(null);
+        }
+    }, [outputConfig.processingType, selectedMaterials, getProcessingType]);
 
     const qrRef = useRef<HTMLDivElement>(null);
     const html5QrInstance = useRef<Html5Qrcode | null>(null);
@@ -52,25 +163,35 @@ const ProcessingView: React.FC = () => {
     // Load all materials when the page enters
     useIonViewWillEnter(() => {
         loadMaterials();
+        loadProcessingTypes();
     });
 
-    // Filter materials whenever the search term changes
+    // Filter materials whenever the search term changes or processing type changes
     useEffect(() => {
         if (allMaterials.length > 0) {
+            let materialsToFilter = allMaterials;
+
+            // If a processing type is selected, filter by valid source types
+            if (selectedProcessingType) {
+                materialsToFilter = allMaterials.filter(material =>
+                    selectedProcessingType.sourceTypes.includes(material.type)
+                );
+            }
+
             if (!materialSearchTerm.trim()) {
-                setFilteredMaterials(allMaterials);
+                setFilteredMaterials(materialsToFilter);
             } else {
                 const lowercaseSearch = materialSearchTerm.toLowerCase();
-                const filtered = allMaterials.filter(material =>
+                const filtered = materialsToFilter.filter(material =>
                     (material.humanId && material.humanId.toLowerCase().includes(lowercaseSearch)) ||
                     (material.id && material.id.toLowerCase().includes(lowercaseSearch)) ||
-                    (materialTypes.find(t => t.id === material.type)?.label.toLowerCase().includes(lowercaseSearch)) ||
-                    (woodSpecies.find(s => s.id === material.specie)?.label.toLowerCase().includes(lowercaseSearch))
+                    (MaterialMappings.getMaterialTypeLabel(material.type).toLowerCase().includes(lowercaseSearch)) ||
+                    (MaterialMappings.getWoodSpeciesLabel(material.specie).toLowerCase().includes(lowercaseSearch))
                 );
                 setFilteredMaterials(filtered);
             }
         }
-    }, [materialSearchTerm, allMaterials]);
+    }, [materialSearchTerm, allMaterials, selectedProcessingType]);
 
     const loadMaterials = async () => {
         try {
@@ -93,8 +214,18 @@ const ProcessingView: React.FC = () => {
         console.log('Adding material with ID:', id);
 
         try {
+            // Check if processing type is selected first
+            if (!selectedProcessingType) {
+                presentAlert({
+                    header: 'Selectați tipul de procesare',
+                    message: 'Vă rugăm să selectați mai întâi tipul de procesare înainte de a adăuga materiale.',
+                    buttons: ['OK'],
+                });
+                return;
+            }
+
             // First check if material is already selected
-            if (selectedMaterials.some(m => m.id === id)) {
+            if (selectedMaterials.some(m => m._id === id || m.humanId === id)) {
                 console.log('Material already selected');
                 presentAlert({
                     header: 'Material deja adăugat',
@@ -116,6 +247,26 @@ const ProcessingView: React.FC = () => {
             }
 
             if (material) {
+                // Check if material type is compatible with selected processing type
+                if (!selectedProcessingType.sourceTypes.includes(material.type)) {
+                    presentAlert({
+                        header: 'Material incompatibil',
+                        message: `Acest material de tip "${material.type}" nu poate fi procesat cu "${selectedProcessingType.label}". Tipurile acceptate sunt: ${selectedProcessingType.sourceTypes.join(', ')}.`,
+                        buttons: ['OK'],
+                    });
+                    return;
+                }
+
+                // Check if mixing material types (all materials should be same type)
+                if (selectedMaterials.length > 0 && selectedMaterials[0].type !== material.type) {
+                    presentAlert({
+                        header: 'Tipuri diferite de materiale',
+                        message: 'Toate materialele selectate trebuie să fie de același tip.',
+                        buttons: ['OK'],
+                    });
+                    return;
+                }
+
                 console.log('Adding material to selected materials:', material);
                 setSelectedMaterials(prev => [...prev, material]);
             } else {
@@ -189,6 +340,15 @@ const ProcessingView: React.FC = () => {
             return;
         }
 
+        if (!outputConfig.processingType) {
+            presentAlert({
+                header: 'Configurare incompletă',
+                message: 'Selectați tipul de procesare.',
+                buttons: ['OK'],
+            });
+            return;
+        }
+
         if (!outputConfig.type) {
             presentAlert({
                 header: 'Configurare incompletă',
@@ -198,18 +358,43 @@ const ProcessingView: React.FC = () => {
             return;
         }
 
+        if (!outputConfig.specie) {
+            presentAlert({
+                header: 'Configurare incompletă',
+                message: 'Selectați specia lemnului pentru materialul rezultat.',
+                buttons: ['OK'],
+            });
+            return;
+        }
+
+        if (!availableWoodSpecies.includes(outputConfig.specie)) {
+            presentAlert({
+                header: 'Specie invalidă',
+                message: 'Specia selectată nu este prezentă în materialele sursă.',
+                buttons: ['OK'],
+            });
+            return;
+        }
+
         setIsProcessing(true);
 
         try {
-            // Here we would call the API to process the materials
-            // const result = await processMaterials(selectedMaterials.map(m => m.id), outputConfig);
+            // Call the API to process the materials
+            const sourceIds = selectedMaterials.map(m => m._id);
 
-            // For now we'll just show a success message
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+            // Transform outputConfig to match backend expectations
+            const apiConfig = {
+                type: outputConfig.type,
+                specie: outputConfig.specie,
+                count: outputConfig.count,
+                processingTypeId: outputConfig.processingType
+            };
+
+            const result = await processAPI(sourceIds, apiConfig);
 
             presentAlert({
                 header: 'Succes',
-                message: 'Materialele au fost procesate cu succes.',
+                message: `${result.message}`,
                 buttons: [
                     {
                         text: 'OK',
@@ -225,7 +410,7 @@ const ProcessingView: React.FC = () => {
             console.error('Processing error:', error);
             presentAlert({
                 header: 'Eroare de procesare',
-                message: 'Nu s-au putut procesa materialele.',
+                message: `Nu s-au putut procesa materialele: ${error instanceof Error ? error.message : 'Eroare necunoscută'}`,
                 buttons: ['OK'],
             });
         } finally {
@@ -245,10 +430,6 @@ const ProcessingView: React.FC = () => {
         }
     };
 
-    // Calculate total volume of selected materials
-    const totalVolume = selectedMaterials.reduce((sum, material) => {
-        return sum + (material.volum_total ? parseFloat(material.volum_total) : 0);
-    }, 0);
 
     return (
         <IonPage>
@@ -265,117 +446,186 @@ const ProcessingView: React.FC = () => {
                     </IonToolbar>
                 </IonHeader>
 
-                {/* Material Input Section */}
-                <IonItem lines="full">
-                    <IonLabel position="stacked">Adaugă Material (ID sau Cod)</IonLabel>
-                    <div className="flex w-full">
-                        <IonInput
-                            value={materialInput}
-                            onIonChange={e => setMaterialInput(e.detail.value || '')}
-                            onKeyPress={handleInputKeyPress}
-                            placeholder="Introdu ID-ul materialului"
-                            className="flex-1"
-                        ></IonInput>
-                        <IonButton onClick={() => setShowMaterialSelectionModal(true)}>
-                            <IonIcon icon={add} />
-                        </IonButton>
-                        <IonButton onClick={handleQrScan}>
-                            <IonIcon icon={qrCode} />
-                        </IonButton>
-                    </div>
-                </IonItem>
-
-                {/* Selected Materials Section */}
-                <IonItemDivider>Materiale Selectate</IonItemDivider>
-
-                {selectedMaterials.length === 0 ? (
-                    <IonItem lines="none">
-                        <IonLabel color="medium" className="ion-text-center">
-                            Niciun material selectat
-                        </IonLabel>
-                    </IonItem>
-                ) : (
-                    <IonList>
-                        {selectedMaterials.map((material, index) => (
-                            <MaterialItem
-                                key={index}
-                                material={material}
-                                detailButton={false}
-                                showDeleteButton={true}
-                                onDelete={() => removeMaterial(index)}
-                            />
-                        ))}
-
-                        <IonItem>
-                            <IonLabel>
-                                <h2>Total Volum</h2>
-                            </IonLabel>
-                            <IonLabel slot="end" className="ion-text-right">
-                                <h2>{totalVolume.toFixed(3)} m³</h2>
-                            </IonLabel>
-                        </IonItem>
-                    </IonList>
-                )}
-
-                {/* Output Configuration */}
-                <IonItemDivider className="mt-4">Configurare Rezultat</IonItemDivider>
+                {/* Step 1: Processing Type Selection */}
+                <IonItemDivider>Pasul 1: Selectează Tipul de Procesare</IonItemDivider>
 
                 <IonItem>
-                    <IonLabel position="stacked">Număr de materiale rezultate</IonLabel>
-                    <IonInput
-                        type="number"
-                        min={1}
-                        value={outputConfig.count}
-                        onIonChange={e => setOutputConfig({
-                            ...outputConfig,
-                            count: parseInt(e.detail.value || '1', 10)
-                        })}
-                    ></IonInput>
-                </IonItem>
-
-                <IonItem>
-                    <IonLabel position="stacked">Tip material</IonLabel>
+                    <IonLabel position="stacked">Tip procesare</IonLabel>
                     <IonSelect
-                        value={outputConfig.type}
-                        placeholder="Selectează tipul"
-                        onIonChange={e => setOutputConfig({
-                            ...outputConfig,
-                            type: e.detail.value
-                        })}
+                        value={outputConfig.processingType}
+                        placeholder="Selectează tipul de procesare"
+                        onIonChange={e => {
+                            const processingTypeId = e.detail.value;
+                            setOutputConfig({
+                                ...outputConfig,
+                                processingType: processingTypeId
+                            });
+                            // Clear selected materials when processing type changes
+                            if (processingTypeId !== outputConfig.processingType) {
+                                setSelectedMaterials([]);
+                            }
+                        }}
                     >
-                        {materialTypes.map(type => (
+                        {allProcessingTypes.map(type => (
                             <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
                         ))}
                     </IonSelect>
+                    {allProcessingTypes.length === 0 && (
+                        <IonLabel color="medium" className="ion-padding-top">
+                            Se încarcă tipurile de procesare...
+                        </IonLabel>
+                    )}
                 </IonItem>
 
-                <IonItem>
-                    <IonLabel position="stacked">Specie lemn</IonLabel>
-                    <IonSelect
-                        value={outputConfig.specie}
-                        placeholder="Selectează specia"
-                        onIonChange={e => setOutputConfig({
-                            ...outputConfig,
-                            specie: e.detail.value
-                        })}
-                    >
-                        {woodSpecies.map(specie => (
-                            <IonSelectOption key={specie.id} value={specie.id}>{specie.label}</IonSelectOption>
-                        ))}
-                    </IonSelect>
-                </IonItem>
+                {/* Processing type description */}
+                {selectedProcessingType && (
+                    <IonItem lines="none">
+                        <IonLabel color="medium" className="ion-text-wrap">
+                            <strong>Descriere:</strong> {selectedProcessingType.description}
+                            <br />
+                            <strong>Tip rezultat:</strong> {selectedProcessingType.resultType === 'same' ? 'Același ca sursa' : selectedProcessingType.resultType}
+                            <br />
+                            <strong>Tipuri materiale acceptate:</strong> {selectedProcessingType.sourceTypes.join(', ')}
+                        </IonLabel>
+                    </IonItem>
+                )}
 
-                {/* Process Button */}
-                <div className="ion-padding">
-                    <IonButton
-                        expand="block"
-                        onClick={processMaterials}
-                        disabled={selectedMaterials.length === 0 || isProcessing}
-                    >
-                        <IonIcon icon={save} slot="start" />
-                        {isProcessing ? 'Se procesează...' : 'Procesează Materialele'}
-                    </IonButton>
-                </div>
+                {/* Step 2: Material Selection - Only shown after processing type is selected */}
+                {selectedProcessingType && (
+                    <>
+                        <IonItemDivider className="mt-4">Pasul 2: Adaugă Materiale</IonItemDivider>
+
+                        <IonItem lines="full">
+                            <IonLabel position="stacked">Adaugă Material (ID sau Cod)</IonLabel>
+                            <div className="flex w-full">
+                                <IonInput
+                                    value={materialInput}
+                                    onIonChange={e => setMaterialInput(e.detail.value || '')}
+                                    onKeyPress={handleInputKeyPress}
+                                    placeholder="Introdu ID-ul materialului"
+                                    className="flex-1"
+                                ></IonInput>
+                                <IonButton onClick={() => setShowMaterialSelectionModal(true)}>
+                                    <IonIcon icon={add} />
+                                </IonButton>
+                                <IonButton onClick={handleQrScan}>
+                                    <IonIcon icon={qrCode} />
+                                </IonButton>
+                            </div>
+                        </IonItem>
+
+                        <IonItem lines="none">
+                            <IonLabel color="medium" className="ion-text-wrap">
+                                <strong>Restricție:</strong> Doar materialele de tip {selectedProcessingType.sourceTypes.join(' sau ')} pot fi procesate cu această opțiune.
+                            </IonLabel>
+                        </IonItem>
+                    </>
+                )}
+
+                {/* Selected Materials Section - Only shown after processing type is selected */}
+                {selectedProcessingType && (
+                    <>
+                        <IonItemDivider className="mt-2">Materiale Selectate</IonItemDivider>
+
+                        {selectedMaterials.length === 0 ? (
+                            <IonItem lines="none">
+                                <IonLabel color="medium" className="ion-text-center">
+                                    Niciun material selectat
+                                </IonLabel>
+                            </IonItem>
+                        ) : (
+                            <IonList>
+                                {selectedMaterials.map((material, index) => (
+                                    <MaterialItem
+                                        key={index}
+                                        material={material}
+                                        detailButton={false}
+                                        showDeleteButton={true}
+                                        onDelete={() => removeMaterial(index)}
+                                    />
+                                ))}
+                            </IonList>
+                        )}
+                    </>
+                )}
+
+                {/* Step 3: Output Configuration - Only shown after materials are selected */}
+                {selectedProcessingType && selectedMaterials.length > 0 && (
+                    <>
+                        <IonItemDivider className="mt-4">Pasul 3: Configurare Rezultat</IonItemDivider>
+
+                        <IonItem>
+                            <IonLabel position="stacked">Număr de materiale rezultate</IonLabel>
+                            <IonInput
+                                type="number"
+                                min={1}
+                                value={outputConfig.count}
+                                onIonChange={e => setOutputConfig({
+                                    ...outputConfig,
+                                    count: parseInt(e.detail.value || '1', 10)
+                                })}
+                            ></IonInput>
+                        </IonItem>
+
+                        <IonItem>
+                            <IonLabel position="stacked">Tip material</IonLabel>
+                            <IonSelect
+                                value={outputConfig.type}
+                                placeholder="Selectează tipul"
+                                disabled={selectedProcessingType !== null}
+                                onIonChange={e => setOutputConfig({
+                                    ...outputConfig,
+                                    type: e.detail.value
+                                })}
+                            >
+                                {MaterialMappings.getMaterialTypeOptions().map(type => (
+                                    <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
+                                ))}
+                            </IonSelect>
+                            {selectedProcessingType && (
+                                <IonLabel color="medium" className="ion-padding-top">
+                                    Tipul este determinat automat de procesarea selectată
+                                </IonLabel>
+                            )}
+                        </IonItem>
+
+                        <IonItem>
+                            <IonLabel position="stacked">Specie lemn</IonLabel>
+                            <IonSelect
+                                value={outputConfig.specie}
+                                placeholder="Selectează specia"
+                                disabled={availableWoodSpecies.length <= 1}
+                                onIonChange={e => setOutputConfig({
+                                    ...outputConfig,
+                                    specie: e.detail.value
+                                })}
+                            >
+                                {MaterialMappings.getWoodSpeciesOptions()
+                                    .filter(specie => availableWoodSpecies.includes(specie.id))
+                                    .map(specie => (
+                                        <IonSelectOption key={specie.id} value={specie.id}>{specie.label}</IonSelectOption>
+                                    ))}
+                            </IonSelect>
+                            {availableWoodSpecies.length === 0 && (
+                                <IonLabel color="medium" className="ion-padding-top">
+                                    Adăugați materiale pentru a selecta specia
+                                </IonLabel>
+                            )}
+                        </IonItem>
+
+                        {/* Process Button */}
+                        <div className="ion-padding">
+                            <IonButton
+                                expand="block"
+                                onClick={processMaterials}
+                                disabled={selectedMaterials.length === 0 || isProcessing || !outputConfig.processingType}
+                            >
+                                <IonIcon icon={save} slot="start" />
+                                {isProcessing ? 'Se procesează...' : 'Procesează Materialele'}
+                            </IonButton>
+                        </div>
+                    </>
+                )}
             </IonContent>
 
             {/* QR Scanner Modal */}
@@ -502,9 +752,9 @@ const ProcessingView: React.FC = () => {
                                             console.error('Material ID is undefined');
                                         }
                                     }}
-                                    disabled={selectedMaterials.some(m => m.id === material.id)}
+                                    disabled={selectedMaterials.some(m => m._id === material._id)}
                                     extraContent={
-                                        selectedMaterials.some(m => m.id === material.id) && (
+                                        selectedMaterials.some(m => m._id === material._id) && (
                                             <IonIcon icon={checkmark} slot="end" color="success" />
                                         )
                                     }

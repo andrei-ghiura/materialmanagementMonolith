@@ -21,8 +21,8 @@ const MaterialComponents = () => {
             setMaterial(found);
             if (found) {
                 const allComps = getAllComponentsRecursive(found, materials);
-                setPrimeComponents(allComps.filter((c) => c.tip === 'Materie prima'));
-                setProcessedComponents(allComps.filter((c) => c.tip !== 'Materie prima'));
+                setPrimeComponents(allComps.filter((c) => c.type === 'Materie prima'));
+                setProcessedComponents(allComps.filter((c) => c.type !== 'Materie prima'));
             }
         });
     });
@@ -32,9 +32,10 @@ const MaterialComponents = () => {
         if (!mat.componente || mat.componente.length === 0) return [];
         let result: Material[] = [];
         for (const compId of mat.componente) {
-            if (visited.has(compId)) continue; // Prevent cycles
-            visited.add(compId);
-            const comp = materials.find((m) => m.id === compId);
+            const componentId = typeof compId === 'string' ? compId : compId._id;
+            if (visited.has(componentId)) continue; // Prevent cycles
+            visited.add(componentId);
+            const comp = materials.find((m) => m.id === componentId || m._id === componentId);
             if (comp) {
                 result.push(comp);
                 result = result.concat(getAllComponentsRecursive(comp, materials, visited));
@@ -64,7 +65,10 @@ const MaterialComponents = () => {
             { header: 'Prime/Processed', dataKey: 'prime', width: 90 },
         ];
         // Gather all components (prime and processed)
-        const allRows: any[] = [];
+        interface TableRow extends Material {
+            prime: string;
+        }
+        const allRows: TableRow[] = [];
         processedComponents.forEach((comp) => {
             allRows.push({ ...comp, prime: 'Processed' });
         });

@@ -1,4 +1,4 @@
-import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonFabList, IonHeader, IonIcon, IonList, IonPage, IonTitle, IonToolbar, useIonAlert, IonItemOption, IonItemOptions, IonItemSliding, IonModal } from '@ionic/react';
+import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonFabList, IonHeader, IonIcon, IonList, IonPage, IonTitle, IonToolbar, useIonAlert, IonItemOption, IonItemOptions, IonItemSliding, IonModal, IonMenuButton } from '@ionic/react';
 import labels from '../labels';
 import { add, qrCode, cogOutline, close } from 'ionicons/icons';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
@@ -140,12 +140,14 @@ const MaterialListView: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar>
+          <IonButtons slot="start">
+            <IonMenuButton />
+          </IonButtons>
           <IonTitle>{labels.MaterialListView}</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={() => { scan() }}>
               <IonIcon ios={qrCode} md={qrCode}> </IonIcon>
             </IonButton>
-
           </IonButtons>
         </IonToolbar>
       </IonHeader>

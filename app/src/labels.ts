@@ -21,7 +21,7 @@ const labels = {
   adaugaComponenta: "Adauga componenta prin scanare QR",
   exportEticheta: "Exporta eticheta",
   type: "Tip Material",
-  cod_unic_aviz: "Cod Unic Aviz",
+  cod_unic_aviz: "Cod Unic Aviz/Număr Factură",
   specie: "Specie Lemn",
   data: "Data",
   apv: "APV",

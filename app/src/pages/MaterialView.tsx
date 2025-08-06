@@ -1,8 +1,8 @@
 import { IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonInput, IonSelect, IonFooter, useIonAlert, IonLabel, IonPage, IonGrid, IonRow, IonCol, IonSelectOption, IonTextarea } from "@ionic/react";
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Prompt } from 'react-router-dom';
-import { deleteMaterial, getAll, save, update } from "../../api/materials";
+import { deleteMaterial, save, update } from "../../api/materials";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Capacitor } from '@capacitor/core';
 import { useHistory, useParams } from 'react-router-dom';
@@ -10,7 +10,7 @@ import labels from '../labels';
 import { Material } from "../types";
 import { makeLabelCanvas } from "../components/makeLabelCanvas";
 import { Html5Qrcode } from 'html5-qrcode';
-import { materialTypes, woodSpecies } from "../selectOptions";
+import { MaterialMappings } from "../config/materialMappings";
 const isWeb = () => {
     return !(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
 };
@@ -19,8 +19,49 @@ const MaterialView = () => {
     const history = useHistory();
     const { id } = useParams<{ id: string }>();
     const [presentAlert] = useIonAlert();
-    const [componente, setComponente] = useState<string[]>([]);
-    const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+
+    const isMaterial = useCallback((component: string | Material): component is Material => {
+        return typeof component === 'object' && component !== null && '_id' in component;
+    }, []);
+
+    const ensureMaterialArray = useCallback(async (components: (string | Material)[] = []): Promise<Material[]> => {
+        const result: Material[] = [];
+        const { getById } = await import('../../api/materials');
+
+        for (const comp of components) {
+            if (isMaterial(comp)) {
+                result.push(comp);
+            } else {
+                try {
+                    const material = await getById(comp);
+                    if (material) {
+                        result.push(material);
+                    }
+                } catch (error) {
+                    console.error(`Failed to fetch material with id ${comp}:`, error);
+                }
+            }
+        }
+        return result;
+    }, [isMaterial]);
+
+    const saveToApi = useCallback(async (materialToSave: Material) => {
+        // Convert any Material objects in componente array to their IDs
+        const components = materialToSave.componente || [];
+        const componente = components.map(comp => isMaterial(comp) ? comp._id : comp);
+
+        const dataToSave: Material = {
+            ...materialToSave,
+            componente,
+        };
+
+        if (!id) {
+            await save(dataToSave);
+        } else {
+            await update(id, dataToSave);
+        }
+    }, [id, isMaterial]);
+    const [componente, setComponente] = useState<(string | Material)[]>([]);
     const [material, setMaterial] = useState<Material>({
         _id: '',
         type: '',
@@ -44,23 +85,25 @@ const MaterialView = () => {
     const isNew = !id;
     // Fetch material from backend if id is present
     useEffect(() => {
-        async function fetchMaterial() {
+        async function fetchData() {
             if (id) {
                 try {
                     const { getById } = await import('../../api/materials');
                     const data = await getById(id);
                     setMaterial(data);
+                    setComponente(data.componente || []);
                     initialMaterialRef.current = data;
-                } catch (error) {
+                } catch (error: unknown) {
+                    console.error('Failed to fetch material:', error);
                     presentAlert({
                         header: 'Eroare',
-                        message: 'Nu s-a putut încărca materialul.' + error,
+                        message: 'Nu s-a putut încărca materialul.',
                         buttons: ['OK'],
                     });
                 }
             }
         }
-        fetchMaterial();
+        fetchData();
     }, [id, presentAlert]);
     const [labelImageUrl, setLabelImageUrl] = useState("");
     const labelCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -103,8 +146,16 @@ const MaterialView = () => {
     }
 
     useEffect(() => {
-        setComponente(material.componente || []);
-    }, [material]);
+        async function updateComponente() {
+            if (material.componente) {
+                const materials = await ensureMaterialArray(material.componente);
+                setComponente(materials);
+            } else {
+                setComponente([]);
+            }
+        }
+        updateComponente();
+    }, [material, ensureMaterialArray]);
 
     // Generate label image when material or material.id changes
     useEffect(() => {
@@ -128,13 +179,23 @@ const MaterialView = () => {
             const rawData = barcodes[0]?.displayValue || '';
             const scannedData = JSON.parse(rawData);
             if (scannedData.id) {
-                const updated = {
-                    ...material,
-                    componente: [...(componente || []), scannedData.id],
-                };
-                await save(updated);
-                setMaterial(updated);
-                alert('Componenta adaugata cu succes!');
+                const { getById } = await import('../../api/materials');
+                try {
+                    const componentData = await getById(scannedData.id);
+                    const newComponents = [...componente, componentData];
+                    setComponente(newComponents);
+
+                    const updated: Material = {
+                        ...material,
+                        componente: newComponents.map(comp => isMaterial(comp) ? comp._id : comp),
+                    };
+                    await saveToApi(updated);
+                    setMaterial(updated);
+                    alert('Componenta adaugata cu succes!');
+                } catch (err) {
+                    console.error('Nu s-a putut găsi materialul scanat:', err);
+                    alert('Nu s-a putut găsi materialul scanat.');
+                }
             } else {
                 alert('QR-ul nu contine un material valid.');
             }
@@ -163,11 +224,14 @@ const MaterialView = () => {
                             scannedData = { id: decodedText.trim() };
                         }
                         if (scannedData.id) {
-                            const updated = {
+                            const newComponents = [...componente, scannedData.id];
+                            setComponente(newComponents);
+
+                            const updated: Material = {
                                 ...material,
-                                componente: [...(componente || []), scannedData.id],
+                                componente: newComponents.map(comp => isMaterial(comp) ? comp._id : comp),
                             };
-                            await save(updated);
+                            await saveToApi(updated);
                             setMaterial(updated);
                             alert('Componenta adaugata cu succes!');
                         } else {
@@ -185,7 +249,7 @@ const MaterialView = () => {
                 html5QrInstance.current.stop().catch(() => { });
             }
         };
-    }, [componente, material, showWebQrModal]);
+    }, [componente, material, showWebQrModal, ensureMaterialArray, saveToApi, isMaterial]);
 
     const downloadQRImage = async (canvas: HTMLCanvasElement, fileName: string) => {
         const dataUrl = canvas.toDataURL('image/png');
@@ -212,13 +276,34 @@ const MaterialView = () => {
     };
 
     const handleConfirm = async () => {
+        // Validate required fields
+        if (!material.type) {
+            presentAlert({
+                header: 'Câmp obligatoriu',
+                message: 'Selectați tipul materialului.',
+                buttons: ['OK']
+            });
+            return;
+        }
+
+        if (!material.specie) {
+            presentAlert({
+                header: 'Câmp obligatoriu',
+                message: 'Selectați specia lemnului.',
+                buttons: ['OK']
+            });
+            return;
+        }
+
         try {
             if (isNew) {
                 // For new materials, use save
-                await save({ ...material, componente });
+                const componentsToSave = componente.map(comp => isMaterial(comp) ? comp._id : comp);
+                await save({ ...material, componente: componentsToSave });
             } else {
                 // For existing materials, use update
-                await update(id!, { ...material, componente });
+                const componentsToSave = componente.map(comp => isMaterial(comp) ? comp._id : comp);
+                await update(id!, { ...material, componente: componentsToSave });
             }
 
             setUnsaved(false);
@@ -238,6 +323,7 @@ const MaterialView = () => {
                 });
             }
         } catch (error) {
+            console.error('Failed to save material:', error);
             presentAlert({
                 header: 'Eroare',
                 message: `Nu s-a putut ${isNew ? 'crea' : 'actualiza'} materialul.`,
@@ -348,41 +434,51 @@ const MaterialView = () => {
                         {/* Left Column: Material Details */}
                         <IonCol size="12" size-lg="6" className="flex flex-col px-2 py-1"> {/* MODIFIED: Removed IonCard, added padding to IonCol */}
                             <div className="bg-white rounded-lg shadow p-3 mb-2 flex-grow"> {/* MODIFIED: Added a div with styling to replace IonCard visual */}
-                                <h3 className="text-xl font-bold mb-2">{labels.detaliiMaterial}</h3> {/* MODIFIED: Adjusted margin */}
+                                <h3 className="text-xl font-bold mb-2">{labels.detaliiMaterial}</h3>
+                                <p className="text-sm text-gray-500 mb-3">Câmpurile marcate cu * sunt obligatorii</p>
                                 <IonRow>
                                     <IonCol>
 
-                                        <IonItem>  <IonSelect label={labels.type}
-                                            value={material.type}
-                                            onIonChange={(ev) => changeMaterial('type', ev.target.value)}>
-                                            {materialTypes.map((type) => (
-                                                <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
-                                            ))}
-                                        </IonSelect></IonItem>
+                                        <IonItem>
+                                            <IonSelect
+                                                required
+                                                label={`${labels.type} *`}
+                                                value={material.type}
+                                                className={!material.type ? 'ion-invalid' : ''}
+                                                onIonChange={(ev) => changeMaterial('type', ev.target.value)}>
+                                                {MaterialMappings.getMaterialTypeOptions().map((type) => (
+                                                    <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
+                                                ))}
+                                            </IonSelect>
+                                        </IonItem>
                                     </IonCol>
                                     <IonCol>
 
-                                        <IonItem>  <IonSelect label={labels.specie}
-                                            value={material.specie}
-                                            onIonChange={(ev) => changeMaterial('specie', ev.target.value)}>
-                                            {woodSpecies.map((type) => (
-                                                <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
-                                            ))}
-                                        </IonSelect></IonItem>
+                                        <IonItem>
+                                            <IonSelect
+                                                required
+                                                label={`${labels.specie} *`}
+                                                value={material.specie}
+                                                className={!material.specie ? 'ion-invalid' : ''}
+                                                onIonChange={(ev) => changeMaterial('specie', ev.target.value)}>
+                                                {MaterialMappings.getWoodSpeciesOptions().map((type) => (
+                                                    <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
+                                                ))}
+                                            </IonSelect></IonItem>
                                     </IonCol>
                                     <IonCol size="12" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" sizeLg="3"><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" /> </IonItem></IonCol>
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" /> </IonItem></IonCol>
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
                                     <IonCol size="12"><IonItem> <IonTextarea onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" /> </IonItem></IonCol>
                                 </IonRow>
 
@@ -396,17 +492,17 @@ const MaterialView = () => {
                                 {componente?.length === 0 ? (
                                     <IonLabel color="medium">Nicio componenta adaugata.</IonLabel>
                                 ) : (
-                                    componente.map((compId: string, index: number) => {
-                                        const comp = allMaterials.find((m) => m.id === compId);
-                                        return (
-                                            <IonItem button detail key={index} onClick={() => history.push(`/material/${compId}`)} lines="full" className="py-1 min-h-[auto]">
-                                                <IonLabel>
-                                                    <h3 className="m-0 text-sm">{compId}</h3>
-                                                    <p className="m-0 text-xs">{comp?.type || ''}</p>
-                                                </IonLabel>
-                                            </IonItem>
-                                        );
-                                    })
+                                    componente.filter(isMaterial).map((comp, index) => (
+                                        <IonItem button detail key={index} onClick={() => history.push(`/material/${comp._id}`)} lines="full" className="py-2 min-h-[auto]">
+                                            <IonLabel>
+                                                <h3 className="m-0 text-sm font-medium">{comp.humanId}</h3>
+                                                <p className="m-0 text-xs text-gray-600">
+                                                    {MaterialMappings.getMaterialTypeLabel(comp.type)} • {' '}
+                                                    {MaterialMappings.getWoodSpeciesLabel(comp.specie)}
+                                                </p>
+                                            </IonLabel>
+                                        </IonItem>
+                                    ))
                                 )}
                                 <div className="flex justify-center mt-2 mb-1">
                                     <IonButton color="primary" shape="round" onClick={scan} size="small">

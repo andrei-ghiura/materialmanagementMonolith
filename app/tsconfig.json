@@ -17,6 +17,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "api/materials.ts"],
+  "include": ["src", "api/materials.ts", "api/processings.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -47,4 +47,20 @@ const deleteMaterial = async (id: string) => {
     await apiClient.delete(`/materials/${id}`);
 };
 
-export { save, getAll, getById, update, deleteMaterial };
+// Process materials into new material(s)
+interface ProcessConfig {
+    type: string;
+    specie: string;
+    count?: number;
+    processingTypeId?: string; // Processing type ID (matches backend expectation)
+}
+
+const processMaterials = async (sourceIds: string[], outputConfig: ProcessConfig) => {
+    const response = await apiClient.post('/materials/process', {
+        sourceIds,
+        outputConfig
+    });
+    return response.data;
+};
+
+export { save, getAll, getById, update, deleteMaterial, processMaterials };

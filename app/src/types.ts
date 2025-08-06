@@ -15,8 +15,14 @@ export interface Material {
     volum_placuta_rosie?: string;
     volum_total?: string;
     volum_net_paletizat?: string;
-    volum_brut_paletizat?: string;/*  */
+    volum_brut_paletizat?: string;
     nr_bucati?: string;
     observatii?: string;
-    componente?: string[];
+    componente?: string[] | Material[];
+
+    // Legacy fields needed for compatibility with older code
+    nume?: string;
+    tip?: string;
+    descriere?: string;
+    stare?: string;
 }

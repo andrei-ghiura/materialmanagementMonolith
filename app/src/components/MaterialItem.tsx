@@ -1,6 +1,6 @@
 import { IonButton, IonCol, IonIcon, IonItem, IonRow, IonText } from '@ionic/react';
 import { Material } from '../types';
-import { materialTypes, woodSpecies } from '../selectOptions';
+import { MaterialMappings } from '../config/materialMappings';
 import { trash } from 'ionicons/icons';
 
 interface MaterialItemProps {
@@ -29,24 +29,35 @@ const MaterialItem: React.FC<MaterialItemProps> = ({
             onClick={onItemClick}
             disabled={disabled}
         >
-            <div className="w-full">
-                <IonRow>
-                    <IonCol>
+            <IonCol className="w-full">
+                <IonRow >
+                    <IonCol size="6" sizeSm="3">
                         <IonText>
-                            <h2 className="ion-text-wrap font-semibold text-lg">
-                                {materialTypes.find(e => e.id === material.type)?.label} {woodSpecies.find(e => e.id === material.specie)?.label}
+                            <h2 className="ion-text-wrap font-semibold text-lg ion-no-margin">
+                                {MaterialMappings.getMaterialTypeLabel(material.type)}
                             </h2>
                         </IonText>
                     </IonCol>
-                    <IonCol>
-                        <IonText color="medium">
-                            <p className="ion-no-margin">{material.humanId}</p>
-                            <p className="ion-no-margin">{material.data}</p>
+                    <IonCol size="6" sizeSm="3">
+                        <IonText >
+                            <h2 className="ion-text-wrap font-semibold text-lg ion-no-margin">
+                                {MaterialMappings.getWoodSpeciesLabel(material.specie)}
+                            </h2>
                         </IonText>
                     </IonCol>
-                </IonRow>
+                    <IonCol size="6" sizeSm="3">
+                        <IonText color="medium">
+                            <h3 className="ion-no-margin">{material.humanId}</h3>
+                        </IonText>
+                    </IonCol>
+                    <IonCol size="6" sizeSm="3">
+                        <IonText color="medium">
+                            <h3 className="ion-no-margin">{material.data}</h3>
+                        </IonText>
+                    </IonCol>
 
-                <IonRow>
+                    <IonRow>
+                    </IonRow>
                     {material.cod_unic_aviz && (
                         <IonCol size="6" sizeSm="3">
                             <IonText color="medium"><small>Cod aviz</small></IonText>
@@ -108,19 +119,21 @@ const MaterialItem: React.FC<MaterialItemProps> = ({
                         </IonCol>
                     )}
                 </IonRow>
-            </div>
+            </IonCol>
 
-            {showDeleteButton && onDelete && (
-                <IonButton slot="end" fill="clear" color="danger" onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering item click
-                    onDelete();
-                }}>
-                    <IonIcon icon={trash} />
-                </IonButton>
-            )}
+            {
+                showDeleteButton && onDelete && (
+                    <IonButton slot="end" fill="clear" color="danger" onClick={(e) => {
+                        e.stopPropagation(); // Prevent triggering item click
+                        onDelete();
+                    }}>
+                        <IonIcon icon={trash} />
+                    </IonButton>
+                )
+            }
 
             {extraContent}
-        </IonItem>
+        </IonItem >
     );
 };
 
