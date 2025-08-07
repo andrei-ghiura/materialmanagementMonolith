@@ -9,6 +9,7 @@
 export interface MaterialTypeOption {
     id: string;
     label: string;
+    fields: string[];
 }
 
 export interface WoodSpeciesOption {
@@ -18,15 +19,69 @@ export interface WoodSpeciesOption {
 
 // Material Types Configuration
 export const MATERIAL_TYPES: readonly MaterialTypeOption[] = [
-    { id: "BSTN", label: "Buștean" },
-    { id: "BSTF", label: "Buștean Fasonat" },
-    { id: "CHN", label: "Cherestea Netivită" },
-    { id: "CHS", label: "Cherestea Semitivită" },
-    { id: "CHT", label: "Cherestea Tivită" },
-    { id: "FRZ", label: "Frize" },
-    { id: "FRZR", label: "Frize Rindeluite" },
-    { id: "LEA", label: "Leaturi" },
-    { id: "PAN", label: "Panouri" }
+    {
+        id: "BSTN",
+        label: "Buștean",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "nr_placuta_rosie", "lungime", "diametru", "volum_placuta_rosie", "volum_total", "observatii"
+        ]
+    },
+    {
+        id: "BSTF",
+        label: "Buștean Fasonat",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "nr_placuta_rosie", "lungime", "diametru", "volum_placuta_rosie", "volum_total", "observatii"
+        ]
+    },
+    {
+        id: "CHN",
+        label: "Cherestea Netivită",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "CHS",
+        label: "Cherestea Semitivită",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "CHT",
+        label: "Cherestea Tivită",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "FRZ",
+        label: "Frize",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "FRZR",
+        label: "Frize Rindeluite",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "LEA",
+        label: "Leaturi",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    },
+    {
+        id: "PAN",
+        label: "Panouri",
+        fields: [
+            "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
+        ]
+    }
 ] as const;
 
 // Wood Species Configuration
@@ -78,6 +133,11 @@ export const MaterialMappings = {
 
     getMaterialTypeOptions: (): readonly MaterialTypeOption[] => {
         return MATERIAL_TYPES;
+    },
+
+    getFieldsForType: (id: string): string[] => {
+        const type = MATERIAL_TYPES.find(t => t.id === id);
+        return type ? type.fields : [];
     },
 
     // Wood Species Functions

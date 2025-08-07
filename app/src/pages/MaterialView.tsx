@@ -407,7 +407,9 @@ const MaterialView = () => {
             html5QrInstance.current = null;
         }
     };
-    const isRaw = (material: Material) => (material.type == 'BSTN' || material.type == 'BSTF')
+    // Field visibility logic based on material type
+    const visibleFields = MaterialMappings.getFieldsForType(material.type);
+    const isFieldVisible = (field: string) => visibleFields.includes(field);
     console.log(material)
     return (
         <IonPage>
@@ -441,14 +443,19 @@ const MaterialView = () => {
 
                                         <IonItem>
                                             <IonSelect
-                                                interface="modal"
+                                                interfaceOptions={{
+                                                    cssClass: 'cy-material-type-alert'
+                                                }}
                                                 required
                                                 label={`${labels.type} *`}
                                                 value={material.type}
                                                 className={!material.type ? 'ion-invalid' : ''}
-                                                onIonChange={(ev) => changeMaterial('type', ev.target.value)}>
+                                                onIonChange={(ev) => changeMaterial('type', ev.target.value)}
+                                                data-cy="material-type-select"
+                                                disabled={!isNew}
+                                            >
                                                 {MaterialMappings.getMaterialTypeOptions().map((type) => (
-                                                    <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
+                                                    <IonSelectOption key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</IonSelectOption>
                                                 ))}
                                             </IonSelect>
                                         </IonItem>
@@ -457,30 +464,36 @@ const MaterialView = () => {
                                         <IonItem>
                                             <IonSelect
                                                 required
-                                                interface="modal"
                                                 label={`${labels.specie} *`}
                                                 value={material.specie}
                                                 className={!material.specie ? 'ion-invalid' : ''}
-                                                onIonChange={(ev) => changeMaterial('specie', ev.target.value)}>
+                                                onIonChange={(ev) => changeMaterial('specie', ev.target.value)}
+                                                data-cy="material-specie-select"
+                                                interfaceOptions={{
+                                                    cssClass: 'cy-material-specie-alert'
+                                                }}
+                                                disabled={!isNew}
+                                            >
                                                 {MaterialMappings.getWoodSpeciesOptions().map((type) => (
-                                                    <IonSelectOption key={type.id} value={type.id}>{type.label}</IonSelectOption>
+                                                    <IonSelectOption key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</IonSelectOption>
                                                 ))}
-                                            </IonSelect></IonItem>
+                                            </IonSelect>
+                                        </IonItem>
                                     </IonCol>
-                                    <IonCol size="12" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" /> </IonItem></IonCol>
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
-                                    <IonCol size="12"><IonItem> <IonTextarea onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" /> </IonItem></IonCol>
+                                    <IonCol size="12" ><IonItem> <IonInput data-cy="input-cod_unic_aviz" onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" disabled={!isNew} /> </IonItem></IonCol>
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-data" onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" /> </IonItem></IonCol>
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-apv" onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" disabled={!isNew} /> </IonItem></IonCol>
+                                    {isFieldVisible('nr_placuta_rosie') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-nr_placuta_rosie" onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-lat" onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" disabled={!isNew} /> °</IonItem></IonCol>
+                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-log" onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" disabled={!isNew} /> °</IonItem></IonCol>
+                                    {isFieldVisible('lungime') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-lungime" onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
+                                    {isFieldVisible('diametru') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-diametru" onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
+                                    {isFieldVisible('volum_placuta_rosie') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_placuta_rosie" onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isFieldVisible('volum_total') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_total" onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isFieldVisible('nr_bucati') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-nr_bucati" onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    {isFieldVisible('volum_net_paletizat') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_net_paletizat" onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isFieldVisible('volum_brut_paletizat') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_brut_paletizat" onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
+                                    <IonCol size="12"><IonItem> <IonTextarea data-cy="input-observatii" onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" /> </IonItem></IonCol>
                                 </IonRow>
 
                             </div>
