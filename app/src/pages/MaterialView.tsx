@@ -441,6 +441,7 @@ const MaterialView = () => {
 
                                         <IonItem>
                                             <IonSelect
+                                                interface="modal"
                                                 required
                                                 label={`${labels.type} *`}
                                                 value={material.type}
@@ -453,10 +454,10 @@ const MaterialView = () => {
                                         </IonItem>
                                     </IonCol>
                                     <IonCol>
-
                                         <IonItem>
                                             <IonSelect
                                                 required
+                                                interface="modal"
                                                 label={`${labels.specie} *`}
                                                 value={material.specie}
                                                 className={!material.specie ? 'ion-invalid' : ''}
