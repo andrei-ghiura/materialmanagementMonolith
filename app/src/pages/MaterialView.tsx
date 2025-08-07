@@ -1,43 +1,31 @@
-import { IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonInput, IonSelect, IonFooter, useIonAlert, IonLabel, IonPage, IonGrid, IonRow, IonCol, IonSelectOption, IonTextarea } from "@ionic/react";
-import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Prompt } from 'react-router-dom';
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+
+import { useUiState } from '../components/ui/UiStateContext';
+import { useNavigate, useParams } from 'react-router-dom';
 import { deleteMaterial, save, update } from "../api/materials";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Capacitor } from '@capacitor/core';
-import { useHistory, useParams } from 'react-router-dom';
 import labels from '../labels';
 import { Material } from "../types";
 import { makeLabelCanvas } from "../components/makeLabelCanvas";
-import { Html5Qrcode } from 'html5-qrcode';
 import { MaterialMappings } from "../config/materialMappings";
-const isWeb = () => {
-    return !(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
-};
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import Button from 'react-bootstrap/Button';
+import Form from 'react-bootstrap/Form';
+import Modal from 'react-bootstrap/Modal';
+import Card from 'react-bootstrap/Card';
+import ListGroup from 'react-bootstrap/ListGroup';
+import InputGroup from 'react-bootstrap/InputGroup';
 
 const MaterialView = () => {
     // Dark mode logic: listen for changes and apply/remove dark class
-    useEffect(() => {
-        const updateDarkMode = () => {
-            const saved = localStorage.getItem('darkMode');
-            if (saved !== null) {
-                document.body.classList.toggle('dark', saved === 'true');
-            } else {
-                // Use system preference
-                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                document.body.classList.toggle('dark', prefersDark);
-            }
-        };
-        updateDarkMode();
-        // Listen for storage changes (in case user toggles in another tab)
-        window.addEventListener('storage', updateDarkMode);
-        return () => {
-            window.removeEventListener('storage', updateDarkMode);
-        };
-    }, []);
-    const history = useHistory();
+
+    const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
-    const [presentAlert] = useIonAlert();
+    // Alert state for react-bootstrap Modal
+    const [alert, setAlert] = useState<{ header: string, message: string, buttons: { text: string }[], onDidDismiss?: () => void } | null>(null);
 
     const isMaterial = useCallback((component: string | Material): component is Material => {
         return typeof component === 'object' && component !== null && '_id' in component;
@@ -64,22 +52,7 @@ const MaterialView = () => {
         return result;
     }, [isMaterial]);
 
-    const saveToApi = useCallback(async (materialToSave: Material) => {
-        // Convert any Material objects in componente array to their IDs
-        const components = materialToSave.componente || [];
-        const componente = components.map(comp => isMaterial(comp) ? comp._id : comp);
-
-        const dataToSave: Material = {
-            ...materialToSave,
-            componente,
-        };
-
-        if (!id) {
-            await save(dataToSave);
-        } else {
-            await update(id, dataToSave);
-        }
-    }, [id, isMaterial]);
+    // Removed unused saveToApi
     const [componente, setComponente] = useState<(string | Material)[]>([]);
     const [material, setMaterial] = useState<Material>({
         _id: '',
@@ -114,24 +87,18 @@ const MaterialView = () => {
                     initialMaterialRef.current = data;
                 } catch (error: unknown) {
                     console.error('Failed to fetch material:', error);
-                    presentAlert({
-                        header: 'Eroare',
-                        message: 'Nu s-a putut încărca materialul.',
-                        buttons: ['OK'],
-                    });
+
                 }
             }
         }
         fetchData();
-    }, [id, presentAlert]);
+    }, [id]);
     const [labelImageUrl, setLabelImageUrl] = useState("");
     const labelCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const [pendingNavigation, setPendingNavigation] = useState<null | (() => void)>(null);
     const [unsaved, setUnsaved] = useState(false);
     const initialMaterialRef = useRef<Material | null>(null);
-    const [showWebQrModal, setShowWebQrModal] = useState(false);
-    const webQrRef = useRef<HTMLDivElement>(null);
-    const html5QrInstance = useRef<Html5Qrcode | null>(null);
+    // QR code scanning for adding components is disabled
     const changeMaterial = (key: string, value: string | number | null | undefined) => setMaterial({ ...material, [key]: value as string || '' });
 
 
@@ -154,15 +121,19 @@ const MaterialView = () => {
         return () => window.removeEventListener('beforeunload', handler);
     }, [unsaved]);
 
+    // Leave confirmation using Modal
+    const [showLeaveModal, setShowLeaveModal] = useState(false);
+    const handleLeaveConfirm = useCallback(() => setShowLeaveModal(true), []);
+
     // Intercept in-app navigation
-    const handleNav = (navFn: () => void) => {
+    const handleNav = useCallback((navFn: () => void) => {
         if (unsaved) {
             setPendingNavigation(navFn); // Store the actual function, not a wrapper
             handleLeaveConfirm();
         } else {
             navFn();
         }
-    }
+    }, [unsaved, handleLeaveConfirm]);
 
     useEffect(() => {
         async function updateComponente() {
@@ -188,87 +159,9 @@ const MaterialView = () => {
         })();
     }, [material]);
 
-    const scan = async () => {
-        if (isWeb()) {
-            setShowWebQrModal(true);
-            return;
-        }
-        try {
-            const { barcodes } = await BarcodeScanner.scan();
-            const rawData = barcodes[0]?.displayValue || '';
-            const scannedData = JSON.parse(rawData);
-            if (scannedData.id) {
-                const { getById } = await import('../api/materials');
-                try {
-                    const componentData = await getById(scannedData.id);
-                    const newComponents = [...componente, componentData];
-                    setComponente(newComponents);
 
-                    const updated: Material = {
-                        ...material,
-                        componente: newComponents.map(comp => isMaterial(comp) ? comp._id : comp),
-                    };
-                    await saveToApi(updated);
-                    setMaterial(updated);
-                    alert('Componenta adaugata cu succes!');
-                } catch (err) {
-                    console.error('Nu s-a putut găsi materialul scanat:', err);
-                    alert('Nu s-a putut găsi materialul scanat.');
-                }
-            } else {
-                alert('QR-ul nu contine un material valid.');
-            }
-        } catch {
-            alert('Eroare la scanare.');
-        }
-    }
 
-    // Web QR code scan handler
-    useEffect(() => {
-        if (showWebQrModal && webQrRef.current) {
-            if (!html5QrInstance.current) {
-                html5QrInstance.current = new Html5Qrcode(webQrRef.current.id);
-            }
-            html5QrInstance.current
-                .start(
-                    { facingMode: 'environment' },
-                    { fps: 10, qrbox: 250 },
-                    async (decodedText: string) => {
-                        if (html5QrInstance.current) html5QrInstance.current.stop();
-                        setShowWebQrModal(false);
-                        let scannedData: { id: string } = { id: '' };
-                        try {
-                            scannedData = JSON.parse(decodedText);
-                        } catch {
-                            scannedData = { id: decodedText.trim() };
-                        }
-                        if (scannedData.id) {
-                            const newComponents = [...componente, scannedData.id];
-                            setComponente(newComponents);
 
-                            const updated: Material = {
-                                ...material,
-                                componente: newComponents.map(comp => isMaterial(comp) ? comp._id : comp),
-                            };
-                            await saveToApi(updated);
-                            setMaterial(updated);
-                            alert('Componenta adaugata cu succes!');
-                        } else {
-                            alert('QR-ul nu contine un material valid.');
-                        }
-                    },
-                    (errorMessage: string) => {
-                        console.error(errorMessage);
-                    }
-                )
-                .catch(() => { });
-        }
-        return () => {
-            if (html5QrInstance.current) {
-                html5QrInstance.current.stop().catch(() => { });
-            }
-        };
-    }, [componente, material, showWebQrModal, ensureMaterialArray, saveToApi, isMaterial]);
 
     const downloadQRImage = async (canvas: HTMLCanvasElement, fileName: string) => {
         const dataUrl = canvas.toDataURL('image/png');
@@ -290,415 +183,423 @@ const MaterialView = () => {
                 directory: Directory.Documents,
                 recursive: true,
             });
-            alert('QR code saved successfully!');
+            setAlert({
+                header: 'Succes',
+                message: 'QR code saved successfully!',
+                buttons: [{ text: 'OK' }]
+            });
         }
     };
 
-    const handleConfirm = async () => {
+    const handleConfirm = useCallback(async () => {
         // Validate required fields
         if (!material.type) {
-            presentAlert({
+            setAlert({
                 header: 'Câmp obligatoriu',
                 message: 'Selectați tipul materialului.',
-                buttons: ['OK']
+                buttons: [{ text: 'OK' }]
             });
             return;
         }
-
         if (!material.specie) {
-            presentAlert({
+            setAlert({
                 header: 'Câmp obligatoriu',
                 message: 'Selectați specia lemnului.',
-                buttons: ['OK']
+                buttons: [{ text: 'OK' }]
             });
             return;
         }
-
         try {
             if (isNew) {
-                // For new materials, use save
                 const componentsToSave = componente.map(comp => isMaterial(comp) ? comp._id : comp);
                 await save({ ...material, componente: componentsToSave });
             } else {
-                // For existing materials, use update
                 const componentsToSave = componente.map(comp => isMaterial(comp) ? comp._id : comp);
                 await update(id!, { ...material, componente: componentsToSave });
             }
-
             setUnsaved(false);
-
             if (pendingNavigation) {
                 const nav = pendingNavigation;
                 setPendingNavigation(null);
                 nav();
             } else {
-                presentAlert({
+                setAlert({
                     header: 'Succes',
                     message: `Material ${isNew ? 'creat' : 'actualizat'} cu succes!`,
-                    buttons: ['OK'],
+                    buttons: [{ text: 'OK' }],
                     onDidDismiss: () => {
-                        history.push('/');
+                        navigate('/');
                     }
                 });
             }
         } catch (error) {
             console.error('Failed to save material:', error);
-            presentAlert({
+            setAlert({
                 header: 'Eroare',
                 message: `Nu s-a putut ${isNew ? 'crea' : 'actualiza'} materialul.`,
-                buttons: ['OK']
+                buttons: [{ text: 'OK' }]
             });
         }
-    };
+    }, [material, isNew, componente, isMaterial, id, pendingNavigation, navigate]);
+
     const handleDownload = () => {
         if (labelCanvasRef.current) {
             const fileName = `${material.id || 'material'}_${new Date().toISOString().split('.')[0].replace(/[:-]/g, '_')}.png`;
             downloadQRImage(labelCanvasRef.current, fileName);
         }
     };
-    if (!material) return null;
-    // Delete confirmation using presentAlert
-    const handleDelete = () => {
-        presentAlert({
-            header: 'Confirmare ștergere',
-            message: 'Sigur vrei să ștergi acest material?',
-            buttons: [
-                {
-                    text: 'Anulează',
-                    role: 'cancel',
-                },
-                {
-                    text: 'Da, șterge materialul',
-                    role: 'destructive',
-                    handler: async () => {
-                        if (id) {
-                            await deleteMaterial(id);
-                            history.goBack();
-                        }
-                    },
-                },
-            ],
-        });
-    };
 
-    // Leave confirmation using presentAlert
-    const handleLeaveConfirm = () => {
-        presentAlert({
-            header: 'Modificări nesalvate',
-            message: 'Ai modificări nesalvate. Ce vrei să faci?',
-            buttons: [
-                {
-                    text: 'Rămâi pe pagină',
-                    role: 'cancel',
-                    handler: () => {
-                        setPendingNavigation(null); // Clear the pending navigation on cancel
-                    }
-                },
-                {
-                    text: 'Părăsește fără salvare',
-                    role: 'destructive',
-                    handler: () => {
-                        setUnsaved(false);
-                        if (pendingNavigation) {
-                            pendingNavigation(); // Execute the navigation function directly
-                            setPendingNavigation(null);
-                        }
-                    },
-                },
-                {
-                    text: 'Salvează și pleacă',
-                    handler: async () => {
-                        await handleConfirm();
-                    },
-                },
-            ],
-        });
-    };
-
-    const closeWebQrModal = async () => {
-        setShowWebQrModal(false);
-        if (html5QrInstance.current) {
-            try {
-                await html5QrInstance.current.stop();
-            } catch (e) {
-                console.error(e);
-            }
-            html5QrInstance.current = null;
+    // Delete confirmation using Modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const handleDelete = useCallback(() => setShowDeleteModal(true), []);
+    const confirmDelete = async () => {
+        if (id) {
+            await deleteMaterial(id);
+            setShowDeleteModal(false); // Close modal first to avoid state update after unmount
+            navigate(-1);
         }
     };
+
+    // Leave modal handlers
+    const stayOnPage = () => {
+        setPendingNavigation(null);
+        setShowLeaveModal(false);
+    };
+    const leaveWithoutSave = () => {
+        setUnsaved(false);
+        if (pendingNavigation) {
+            pendingNavigation();
+            setPendingNavigation(null);
+        }
+        setShowLeaveModal(false);
+    };
+    const saveAndLeave = async () => {
+        await handleConfirm();
+        setShowLeaveModal(false);
+    };
+
+    // QR code scanning for adding components is disabled
     // Field visibility logic based on material type
     const visibleFields = MaterialMappings.getFieldsForType(material.type);
     const isFieldVisible = (field: string) => visibleFields.includes(field);
-    console.log(material)
-    return (
-        <IonPage>
-            {/* Prompt for browser navigation (react-router-dom v5) */}
-            {unsaved && <Prompt when={unsaved} message={() => false} />}
-            <IonHeader>
-                <IonToolbar>
-                    <IonButtons slot="start">
-                        <IonButton fill="clear" onClick={() => handleNav(() => history.goBack())}>
-                            <span style={{ fontSize: 20 }}>←</span>
-                        </IonButton>
-                    </IonButtons>
-                    <IonTitle>{labels.detaliiMaterial}</IonTitle>
-                    <IonButtons slot="end">
-                        <IonButton color="success" onClick={handleConfirm} data-cy="save-material-btn">
-                            <span style={{ fontWeight: 600 }}>{isNew ? labels.adauga : labels.salveaza}</span>
-                        </IonButton>
-                    </IonButtons>
-                </IonToolbar>
-            </IonHeader>
-            <IonContent className="ion-padding-condensed bg-[#f6f8fa] min-h-screen">
-                <IonGrid>
-                    <IonRow className="ion-justify-content-center">
-                        {/* Left Column: Material Details */}
-                        <IonCol size="12" size-lg="6" className="flex flex-col px-2 py-1">
-                            <div className="w-full max-w-2xl mx-auto">
-                                <section className="bg-white rounded-xl shadow-lg p-5 mb-4 border border-gray-200">
-                                    <h2 className="text-2xl font-bold mb-4 text-primary-700">{labels.detaliiMaterial}</h2>
-                                    <p className="text-base text-gray-600 mb-6">Câmpurile marcate cu <span className="text-red-500">*</span> sunt obligatorii</p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Material Type */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.type} <span className="text-red-500">*</span></label>
-                                            {isNew ? (
-                                                <IonSelect
-                                                    interfaceOptions={{ cssClass: 'cy-material-type-alert' }}
-                                                    required
-                                                    label={labels.type}
-                                                    value={material.type}
-                                                    className={!material.type ? 'ion-invalid' : ''}
-                                                    onIonChange={(ev) => changeMaterial('type', ev.target.value)}
-                                                    data-cy="material-type-select"
-                                                >
-                                                    {MaterialMappings.getMaterialTypeOptions().map((type) => (
-                                                        <IonSelectOption key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</IonSelectOption>
-                                                    ))}
-                                                </IonSelect>
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.type}:</b> {MaterialMappings.getMaterialTypeLabel(material.type)}</div>
-                                            )}
-                                        </div>
-                                        {/* Wood Species */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.specie} <span className="text-red-500">*</span></label>
-                                            {isNew ? (
-                                                <IonSelect
-                                                    required
-                                                    label={labels.specie}
-                                                    value={material.specie}
-                                                    className={!material.specie ? 'ion-invalid' : ''}
-                                                    onIonChange={(ev) => changeMaterial('specie', ev.target.value)}
-                                                    data-cy="material-specie-select"
-                                                    interfaceOptions={{ cssClass: 'cy-material-specie-alert' }}
-                                                >
-                                                    {MaterialMappings.getWoodSpeciesOptions().map((type) => (
-                                                        <IonSelectOption key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</IonSelectOption>
-                                                    ))}
-                                                </IonSelect>
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.specie}:</b> {MaterialMappings.getWoodSpeciesLabel(material.specie)}</div>
-                                            )}
-                                        </div>
-                                        {/* cod_unic_aviz */}
-                                        <div className="md:col-span-2">
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.cod_unic_aviz}</label>
-                                            {isNew ? (
-                                                <IonInput data-cy="input-cod_unic_aviz" onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" className="w-full" />
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.cod_unic_aviz}:</b> {material.cod_unic_aviz}</div>
-                                            )}
-                                        </div>
-                                        {/* data */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.data}</label>
-                                            <IonInput data-cy="input-data" onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" className="w-full" />
-                                        </div>
-                                        {/* apv */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.apv}</label>
-                                            {isNew ? (
-                                                <IonInput data-cy="input-apv" onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" className="w-full" />
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.apv}:</b> {material.apv}</div>
-                                            )}
-                                        </div>
-                                        {/* nr_placuta_rosie */}
-                                        {isFieldVisible('nr_placuta_rosie') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.nr_placuta_rosie}</label>
-                                                <IonInput data-cy="input-nr_placuta_rosie" onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" className="w-full" />
-                                            </div>
-                                        )}
-                                        {/* lat */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.lat}</label>
-                                            {isNew ? (
-                                                <IonInput data-cy="input-lat" onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" className="w-full" />
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.lat}:</b> {material.lat}</div>
-                                            )} <span className="ml-1">°</span>
-                                        </div>
-                                        {/* log */}
-                                        <div>
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.log}</label>
-                                            {isNew ? (
-                                                <IonInput data-cy="input-log" onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" className="w-full" />
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.log}:</b> {material.log}</div>
-                                            )} <span className="ml-1">°</span>
-                                        </div>
-                                        {/* lungime */}
-                                        {isFieldVisible('lungime') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.lungime}</label>
-                                                <IonInput data-cy="input-lungime" onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">cm</span>
-                                            </div>
-                                        )}
-                                        {/* diametru */}
-                                        {isFieldVisible('diametru') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.diametru}</label>
-                                                <IonInput data-cy="input-diametru" onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">cm</span>
-                                            </div>
-                                        )}
-                                        {/* volum_placuta_rosie */}
-                                        {isFieldVisible('volum_placuta_rosie') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_placuta_rosie}</label>
-                                                <IonInput data-cy="input-volum_placuta_rosie" onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
-                                            </div>
-                                        )}
-                                        {/* volum_total */}
-                                        {isFieldVisible('volum_total') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_total}</label>
-                                                <IonInput data-cy="input-volum_total" onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
-                                            </div>
-                                        )}
-                                        {/* nr_bucati */}
-                                        {isFieldVisible('nr_bucati') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.nr_bucati}</label>
-                                                <IonInput data-cy="input-nr_bucati" onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" className="w-full" />
-                                            </div>
-                                        )}
-                                        {/* volum_net_paletizat */}
-                                        {isFieldVisible('volum_net_paletizat') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_net_paletizat}</label>
-                                                <IonInput data-cy="input-volum_net_paletizat" onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
-                                            </div>
-                                        )}
-                                        {/* volum_brut_paletizat */}
-                                        {isFieldVisible('volum_brut_paletizat') && (
-                                            <div>
-                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_brut_paletizat}</label>
-                                                <IonInput data-cy="input-volum_brut_paletizat" onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
-                                            </div>
-                                        )}
-                                        {/* observatii */}
-                                        <div className="md:col-span-2">
-                                            <label className="block font-semibold mb-1 text-gray-700">{labels.observatii}</label>
-                                            {isNew ? (
-                                                <IonTextarea data-cy="input-observatii" onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" className="w-full" />
-                                            ) : (
-                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.observatii}:</b> {material.observatii}</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </section>
-                            </div>
-                        </IonCol>
 
-                        {/* Right Column: Components and QR Code */}
-                        <IonCol size="12" size-lg="6" className="flex flex-col px-2 py-1"> {/* MODIFIED: Removed IonCard, added padding to IonCol */}
-                            <div className="bg-white rounded-lg shadow p-3 mb-2"> {/* MODIFIED: Added a div with styling to replace IonCard visual */}
-                                <h3 className="text-lg font-semibold mb-2">{labels.componente}</h3> {/* MODIFIED: Adjusted margin */}
-                                {componente?.length === 0 ? (
-                                    <IonLabel color="medium">Nicio componenta adaugata.</IonLabel>
-                                ) : (
-                                    componente.filter(isMaterial).map((comp, index) => (
-                                        <IonItem button detail key={index} onClick={() => history.push(`/material/${comp._id}`)} lines="full" className="py-2 min-h-[auto]" data-cy={`component-list-item-${comp._id}`}>
-                                            <IonLabel>
-                                                <h3 className="m-0 text-sm font-medium">{comp.humanId}</h3>
-                                                <p className="m-0 text-xs text-gray-600">
-                                                    {MaterialMappings.getMaterialTypeLabel(comp.type)} • {' '}
-                                                    {MaterialMappings.getWoodSpeciesLabel(comp.specie)}
-                                                </p>
-                                            </IonLabel>
-                                        </IonItem>
-                                    ))
-                                )}
-                                <div className="flex justify-center mt-2 mb-1">
-                                    <IonButton color="primary" shape="round" onClick={scan} size="small" data-cy="add-component-btn">
-                                        <span className="font-semibold">{labels.adaugaComponenta}</span>
-                                    </IonButton>
-                                </div>
-                            </div>
-                            {!isNew && (
-                                <div className="">
-                                    <h3 className="text-lg font-semibold mb-2">Etichetă QR</h3>
-                                    <div id="qrcode" className="mx-auto">
-                                        {labelImageUrl && (
-                                            <img src={labelImageUrl} alt="Printable label" className="" />
-                                        )}
-                                    </div>
-                                    <IonButton color="tertiary" onClick={handleDownload} size="small" data-cy="download-qr-btn">
-                                        <span className="text-lg mr-1" role="img" aria-label="print">⎙</span>
-                                        Descarcă Etichetă
-                                    </IonButton>
-                                </div>)}
-                        </IonCol>
-                    </IonRow>
-                </IonGrid>
-            </IonContent>
-            <IonFooter>
-                <IonToolbar className="py-0 min-h-[auto]">
-                    <IonButtons slot="start">
-                        {!isNew && <IonButton color="danger" onClick={handleDelete} size="small" data-cy="delete-material-btn">
-                            <span className="text-lg mr-1" role="img" aria-label="delete">🗑️</span>
-                            Șterge
-                        </IonButton>
-                        }
+    const { setFooterActions } = useUiState();
 
-                    </IonButtons>
-                    <IonButtons slot="end">
-                        <IonButton color="medium" onClick={() => handleNav(() => history.push(`/material/${material.id}/components`))} size="small" data-cy="export-components-btn">
-                            Export
-                        </IonButton>
-                    </IonButtons>
-                </IonToolbar>
-            </IonFooter>
-            {/* Web QR Modal */}
-            {showWebQrModal && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        width: '100vw',
-                        height: '100vh',
-                        background: 'rgba(0,0,0,0.8)',
-                        zIndex: 10000,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexDirection: 'column',
-                    }}
-                >
-                    <div
-                        id="web-qr-reader"
-                        ref={webQrRef}
-                        style={{ width: 300, height: 300, background: '#000' }}
-                    ></div>
-                    <IonButton color="danger" onClick={closeWebQrModal}>
-                        Închide
-                    </IonButton>
-                </div>
+    // Memoize footer actions to avoid unnecessary re-renders and stale closures
+    const actionsLeft = useMemo(() => (
+        <Button
+            className="btn-transparent me-2"
+            onClick={() => handleNav(() => navigate(-1))}
+            size="sm"
+            style={{ fontSize: 20, textDecoration: 'none' }}
+            data-cy="footer-back-btn"
+        >
+            ← înapoi
+        </Button>
+    ), [handleNav, navigate]);
+
+    const actionsRight = useMemo(() => (
+        <>
+            {!isNew && (
+                <Button className="btn-negative me-2" onClick={handleDelete} size="sm" data-cy="delete-material-btn">
+                    <span className="me-1" role="img" aria-label="delete">🗑️</span>
+                    Șterge
+                </Button>
             )}
-        </IonPage>
+            <Button className="btn-default me-2" onClick={() => handleNav(() => navigate(`/material/${material._id}/components`))} size="sm" data-cy="export-components-btn">
+                Export
+            </Button>
+            {!isNew && (
+                <Button className="btn-info me-2" onClick={() => handleNav(() => navigate(`/flow/${material._id}`))} size="sm" data-cy="show-flow-btn">
+                    Flow
+                </Button>
+            )}
+            <Button className="btn-success  me-2" onClick={handleConfirm} data-cy="save-material-btn">
+                <b>{isNew ? labels.adauga : labels.salveaza}</b>
+            </Button>
+        </>
+    ), [isNew, handleDelete, handleConfirm, handleNav, navigate, material._id]);
+
+    useEffect(() => {
+        setFooterActions({ actionsLeft, actionsRight });
+        return () => setFooterActions(null);
+    }, [actionsLeft, actionsRight, setFooterActions]);
+
+    if (!material) return null;
+
+    return (
+        <>
+            {/* Prompt removed: handled by custom leave modal */}
+            <Container fluid className="bg-[#f6f8fa] min-vh-100">
+                <Row className="justify-content-center">
+                    {/* Left Column: Material Details */}
+                    <Col xs={12} lg={6} className="px-2 py-1">
+                        <div className="w-100 mx-auto" style={{ maxWidth: 800 }}>
+                            <Card className="mb-4 border border-gray-200 shadow-sm">
+                                <Card.Body>
+                                    <Form>
+                                        <Row>
+                                            {/* Material Type */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.type} <span className="text-danger">*</span></Form.Label>
+                                                    <Form.Select
+                                                        required
+                                                        value={material.type}
+                                                        onChange={ev => changeMaterial('type', ev.target.value)}
+                                                        data-cy="material-type-select"
+                                                        className={!material.type ? 'is-invalid' : ''}
+                                                        disabled={!isNew}
+                                                    >
+                                                        <option value="">Selectează tipul</option>
+                                                        {MaterialMappings.getMaterialTypeOptions().map(type => (
+                                                            <option key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                </Form.Group>
+                                            </Col>
+                                            {/* Wood Species */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.specie} <span className="text-danger">*</span></Form.Label>
+                                                    <Form.Select
+                                                        required
+                                                        value={material.specie}
+                                                        onChange={ev => changeMaterial('specie', ev.target.value)}
+                                                        data-cy="material-specie-select"
+                                                        className={!material.specie ? 'is-invalid' : ''}
+                                                        disabled={!isNew}
+                                                    >
+                                                        <option value="">Selectează specia</option>
+                                                        {MaterialMappings.getWoodSpeciesOptions().map(type => (
+                                                            <option key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</option>
+                                                        ))}
+                                                    </Form.Select>
+                                                </Form.Group>
+                                            </Col>
+                                            {/* cod_unic_aviz */}
+                                            <Col md={12} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.cod_unic_aviz}</Form.Label>
+                                                    <Form.Control data-cy="input-cod_unic_aviz" type="text" value={material.cod_unic_aviz} onChange={ev => changeMaterial('cod_unic_aviz', ev.target.value)} disabled={!isNew} />
+                                                </Form.Group>
+                                            </Col>
+                                            {/* data */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.data}</Form.Label>
+                                                    <Form.Control data-cy="input-data" type="date" value={material.data} onChange={ev => changeMaterial('data', ev.target.value)} />
+                                                </Form.Group>
+                                            </Col>
+                                            {/* apv */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.apv}</Form.Label>
+                                                    <Form.Control data-cy="input-apv" type="text" value={material.apv} onChange={ev => changeMaterial('apv', ev.target.value)} disabled={!isNew} />
+                                                </Form.Group>
+                                            </Col>
+                                            {/* nr_placuta_rosie */}
+                                            {isFieldVisible('nr_placuta_rosie') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.nr_placuta_rosie}</Form.Label>
+                                                        <Form.Control data-cy="input-nr_placuta_rosie" type="number" value={material.nr_placuta_rosie} onChange={ev => changeMaterial('nr_placuta_rosie', ev.target.value)} />
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* lat */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.lat}</Form.Label>
+                                                    <InputGroup>
+                                                        <Form.Control data-cy="input-lat" type="text" value={material.lat} onChange={ev => changeMaterial('lat', ev.target.value)} disabled={!isNew} />
+                                                        <InputGroup.Text>°</InputGroup.Text>
+                                                    </InputGroup>
+                                                </Form.Group>
+                                            </Col>
+                                            {/* log */}
+                                            <Col md={6} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.log}</Form.Label>
+                                                    <InputGroup>
+                                                        <Form.Control data-cy="input-log" type="text" value={material.log} onChange={ev => changeMaterial('log', ev.target.value)} disabled={!isNew} />
+                                                        <InputGroup.Text>°</InputGroup.Text>
+                                                    </InputGroup>
+                                                </Form.Group>
+                                            </Col>
+                                            {/* lungime */}
+                                            {isFieldVisible('lungime') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.lungime}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-lungime" type="number" value={material.lungime} onChange={ev => changeMaterial('lungime', ev.target.value)} />
+                                                            <InputGroup.Text>cm</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* diametru */}
+                                            {isFieldVisible('diametru') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.diametru}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-diametru" type="number" value={material.diametru} onChange={ev => changeMaterial('diametru', ev.target.value)} />
+                                                            <InputGroup.Text>cm</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* volum_placuta_rosie */}
+                                            {isFieldVisible('volum_placuta_rosie') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.volum_placuta_rosie}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-volum_placuta_rosie" type="number" value={material.volum_placuta_rosie} onChange={ev => changeMaterial('volum_placuta_rosie', ev.target.value)} />
+                                                            <InputGroup.Text>m³</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* volum_total */}
+                                            {isFieldVisible('volum_total') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.volum_total}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-volum_total" type="number" value={material.volum_total} onChange={ev => changeMaterial('volum_total', ev.target.value)} />
+                                                            <InputGroup.Text>m³</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* nr_bucati */}
+                                            {isFieldVisible('nr_bucati') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.nr_bucati}</Form.Label>
+                                                        <Form.Control data-cy="input-nr_bucati" type="number" value={material.nr_bucati} onChange={ev => changeMaterial('nr_bucati', ev.target.value)} />
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* volum_net_paletizat */}
+                                            {isFieldVisible('volum_net_paletizat') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.volum_net_paletizat}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-volum_net_paletizat" type="number" value={material.volum_net_paletizat} onChange={ev => changeMaterial('volum_net_paletizat', ev.target.value)} />
+                                                            <InputGroup.Text>m³</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* volum_brut_paletizat */}
+                                            {isFieldVisible('volum_brut_paletizat') && (
+                                                <Col md={6} className="mb-3">
+                                                    <Form.Group>
+                                                        <Form.Label>{labels.volum_brut_paletizat}</Form.Label>
+                                                        <InputGroup>
+                                                            <Form.Control data-cy="input-volum_brut_paletizat" type="number" value={material.volum_brut_paletizat} onChange={ev => changeMaterial('volum_brut_paletizat', ev.target.value)} />
+                                                            <InputGroup.Text>m³</InputGroup.Text>
+                                                        </InputGroup>
+                                                    </Form.Group>
+                                                </Col>
+                                            )}
+                                            {/* observatii */}
+                                            <Col md={12} className="mb-3">
+                                                <Form.Group>
+                                                    <Form.Label>{labels.observatii}</Form.Label>
+                                                    <Form.Control as="textarea" data-cy="input-observatii" value={material.observatii} onChange={ev => changeMaterial('observatii', ev.target.value)} />
+                                                </Form.Group>
+                                            </Col>
+                                        </Row>
+                                    </Form>
+                                </Card.Body>
+                            </Card>
+                        </div>
+                    </Col>
+                    {/* Right Column: Components and QR Code */}
+                    <Col xs={12} lg={6} className="px-2 py-1">
+                        <Card className="mb-2 shadow-sm">
+                            <Card.Body>
+                                <Card.Title as="h3" className="mb-2">{labels.componente}</Card.Title>
+                                {componente?.length === 0 ? (
+                                    <div className="text-muted">Nicio componenta adaugata.</div>
+                                ) : (
+                                    <ListGroup variant="flush">
+                                        {componente.filter(isMaterial).map((comp, index) => (
+                                            <ListGroup.Item key={index} action onClick={() => navigate(`/material/${comp._id}`)} data-cy={`component-list-item-${comp._id}`}>
+                                                <div className="fw-bold">{comp.humanId}</div>
+                                                <div className="text-muted small">
+                                                    {MaterialMappings.getMaterialTypeLabel(comp.type)} • {MaterialMappings.getWoodSpeciesLabel(comp.specie)}
+                                                </div>
+                                            </ListGroup.Item>
+                                        ))}
+                                    </ListGroup>
+                                )}
+                                {/* QR code scanning for adding components is disabled */}
+                            </Card.Body>
+                        </Card>
+                        {!isNew && (
+                            <Card className="mb-2">
+                                <Card.Body>
+                                    <Card.Title as="h3" className="mb-2">Etichetă QR</Card.Title>
+                                    <div id="qrcode" className="mx-auto text-center">
+                                        {labelImageUrl && (
+                                            <img src={labelImageUrl} alt="Printable label" style={{ maxWidth: '100%' }} />
+                                        )}
+                                    </div>
+                                    <Button className="btn-default mt-2" onClick={handleDownload} size="sm" data-cy="download-qr-btn">
+                                        <span className="me-1" role="img" aria-label="print">⎙</span>
+                                        Descarcă Etichetă
+                                    </Button>
+                                </Card.Body>
+                            </Card>
+                        )}
+                    </Col>
+                </Row>
+            </Container>
+            {/* Footer */}
+            {/* Alert Modal */}
+            <Modal show={!!alert} onHide={() => { setAlert(null); if (alert?.onDidDismiss) alert.onDidDismiss(); }}>
+                <Modal.Header closeButton>
+                    <Modal.Title>{alert?.header}</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>{alert?.message}</Modal.Body>
+                <Modal.Footer>
+                    {alert?.buttons?.map((btn, idx) => (
+                        <Button key={idx} variant="primary" onClick={() => { setAlert(null); if (alert?.onDidDismiss) alert.onDidDismiss(); }}>{btn.text}</Button>
+                    ))}
+                </Modal.Footer>
+            </Modal>
+            {/* Delete Modal */}
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirmare ștergere</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>Sigur vrei să ștergi acest material?</Modal.Body>
+                <Modal.Footer>
+                    <Button className="btn-default" onClick={() => setShowDeleteModal(false)}>Anulează</Button>
+                    <Button className="btn-negative" onClick={confirmDelete}>Da, șterge materialul</Button>
+                </Modal.Footer>
+            </Modal>
+            {/* Leave Modal */}
+            <Modal show={showLeaveModal} onHide={stayOnPage}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Modificări nesalvate</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>Ai modificări nesalvate. Ce vrei să faci?</Modal.Body>
+                <Modal.Footer>
+                    <Button className="btn-default" onClick={stayOnPage}>Rămâi pe pagină</Button>
+                    <Button className="btn-negative" onClick={leaveWithoutSave}>Părăsește fără salvare</Button>
+                    <Button className="btn-success" onClick={saveAndLeave}>Salvează și pleacă</Button>
+                </Modal.Footer>
+            </Modal>
+            {/* QR code scanning for adding components is disabled */}
+        </>
     );
 }
 export default MaterialView;

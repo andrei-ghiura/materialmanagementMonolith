@@ -1,4 +1,4 @@
-import { IonButtons, IonContent, IonHeader, IonMenuButton, IonPage, IonTitle, IonToolbar, useIonAlert } from '@ionic/react';
+import { Container, Navbar, Nav, Alert } from 'react-bootstrap';
 import ReactFlow, {
     Background,
     Controls,
@@ -11,19 +11,28 @@ import ReactFlow, {
     Position
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { useMemo } from 'react';
-import { getAll } from '../api/materials';
+// ...existing code...
+import { getAll, getMaterialFlow } from '../api/materials';
 
 import { Material } from '../types';
 import { getProcessingHistory, Processing } from '../api/processings';
 import { MaterialMappings } from '../config/materialMappings';
-import { useIonViewWillEnter, useIonRouter } from '@ionic/react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+
 
 const MaterialFlowView: React.FC = () => {
-    const [presentAlert] = useIonAlert();
-    const router = useIonRouter();
+    const [alert, setAlert] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const { id: urlMaterialId } = useParams<{ id?: string }>();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+    const [selectedMaterialId, setSelectedMaterialId] = useState<string>("");
+    const [loading, setLoading] = useState(false);
+    const [showQrModal, setShowQrModal] = useState(false);
+    const webQrRef = useRef<HTMLDivElement>(null);
+    const html5QrInstance = useRef<any>(null);
 
     // Define processing order based on material flow
     const PROCESSING_ORDER = [
@@ -83,7 +92,7 @@ const MaterialFlowView: React.FC = () => {
     const onNodeClick: NodeMouseHandler = (event, node) => {
         // Only navigate for material nodes (not processing nodes)
         if (node.data && node.data._id && !node.data.isProcessing) {
-            router.push(`/material/${node.data._id}`);
+            navigate(`/material/${node.data._id}`);
         }
     };
 
@@ -284,26 +293,114 @@ const MaterialFlowView: React.FC = () => {
         return colors[step] || '#999999';
     };
 
-    const loadData = async () => {
-        try {
-            const [materials, processings] = await Promise.all([
-                getAll(),
-                getProcessingHistory()
-            ]);
-            processData(materials, processings);
-        } catch (error) {
-            console.error('Failed to load data:', error);
-            presentAlert({
-                header: 'Eroare',
-                message: 'Nu s-au putut încărca datele.',
-                buttons: ['OK'],
-            });
-        }
-    };
 
-    useIonViewWillEnter(() => {
-        loadData();
-    });
+    // QR code scan logic
+    useEffect(() => {
+        if (showQrModal && webQrRef.current) {
+            if (!html5QrInstance.current && window.Html5Qrcode) {
+                html5QrInstance.current = new window.Html5Qrcode(webQrRef.current.id);
+            }
+            if (html5QrInstance.current) {
+                html5QrInstance.current
+                    .start(
+                        { facingMode: 'environment' },
+                        { fps: 10, qrbox: 250 },
+                        (decodedText: string) => {
+                            let scannedData: { id: string } = { id: '' };
+                            try {
+                                scannedData = JSON.parse(decodedText);
+                            } catch {
+                                scannedData = { id: decodedText.trim() };
+                            }
+                            if (scannedData.id) {
+                                setSelectedMaterialId(scannedData.id);
+                                setShowQrModal(false);
+                                if (html5QrInstance.current) html5QrInstance.current.stop();
+                            }
+                        },
+                        (errorMessage: string) => {
+                            // ignore
+                        }
+                    )
+                    .catch(() => { });
+            }
+        }
+        return () => {
+            if (html5QrInstance.current) {
+                html5QrInstance.current.stop().catch(() => { });
+            }
+        };
+    }, [showQrModal]);
+
+    useEffect(() => {
+        // Load all materials for selector
+        getAll().then(setAllMaterials).catch(() => setAlert('Nu s-au putut încărca materialele.'));
+    }, []);
+
+    // If urlMaterialId is present, set it as selectedMaterialId on mount
+    useEffect(() => {
+        if (urlMaterialId) {
+            setSelectedMaterialId(urlMaterialId);
+        }
+    }, [urlMaterialId]);
+
+    useEffect(() => {
+        if (selectedMaterialId) {
+            setLoading(true);
+            getMaterialFlow(selectedMaterialId)
+                .then(flow => {
+                    // Compose nodes/edges from flow (ancestors, descendants, processings)
+                    // For now, just show the material and its direct ancestors/descendants
+                    const nodes: Node[] = [];
+                    const edges: Edge[] = [];
+                    const { material, ancestors, descendants, processingsAsSource, processingsAsOutput } = flow;
+                    // Main node
+                    nodes.push({
+                        id: material._id,
+                        type: 'default',
+                        position: { x: 0, y: 0 },
+                        data: { label: getMaterialLabel(material), ...material },
+                    });
+                    // Ancestors
+                    ancestors.forEach((a: Material, i: number) => {
+                        nodes.push({
+                            id: a._id,
+                            type: 'default',
+                            position: { x: -250, y: -100 + i * 120 },
+                            data: { label: getMaterialLabel(a), ...a },
+                        });
+                        edges.push({
+                            id: `${a._id}->${material._id}`,
+                            source: a._id,
+                            target: material._id,
+                            type: 'bezier',
+                        });
+                    });
+                    // Descendants
+                    descendants.forEach((d: Material, i: number) => {
+                        nodes.push({
+                            id: d._id,
+                            type: 'default',
+                            position: { x: 250, y: -100 + i * 120 },
+                            data: { label: getMaterialLabel(d), ...d },
+                        });
+                        edges.push({
+                            id: `${material._id}->${d._id}`,
+                            source: material._id,
+                            target: d._id,
+                            type: 'bezier',
+                        });
+                    });
+                    setNodes(nodes);
+                    setEdges(edges);
+                })
+                .catch(() => setAlert('Nu s-a putut încărca fluxul materialului.'))
+                .finally(() => setLoading(false));
+        } else {
+            setNodes([]);
+            setEdges([]);
+        }
+    }, [selectedMaterialId]);
 
     // ReactFlow configuration
     const flowStyle = useMemo(() => ({
@@ -313,33 +410,63 @@ const MaterialFlowView: React.FC = () => {
     }), []);
 
     return (
-        <IonPage>
-            <IonHeader>
-                <IonToolbar>
-                    <IonButtons slot="start">
-                        <IonMenuButton />
-                    </IonButtons>
-                    <IonTitle>Fluxul Materialelor</IonTitle>
-                </IonToolbar>
-            </IonHeader>
-
-            <IonContent>
-                <div style={flowStyle}>
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onNodeClick={onNodeClick}
-                        fitView
-                    >
-                        <Background />
-                        <Controls />
-                    </ReactFlow>
+        <Container fluid style={{ padding: 0 }}>
+            {alert && (
+                <Alert variant="danger" onClose={() => setAlert(null)} dismissible>
+                    {alert}
+                </Alert>
+            )}
+            <div className="d-flex align-items-center mb-3 px-3">
+                <label className="me-2">Selectează materialul:</label>
+                <select
+                    className="form-select me-2"
+                    style={{ width: 300 }}
+                    value={selectedMaterialId}
+                    onChange={e => setSelectedMaterialId(e.target.value)}
+                >
+                    <option value="">-- Selectează --</option>
+                    {allMaterials.map(m => (
+                        <option key={m._id} value={m._id}>{m.humanId} ({MaterialMappings.getMaterialTypeLabel(m.type)})</option>
+                    ))}
+                </select>
+                <button className="btn btn-info me-2" onClick={() => setShowQrModal(true)} type="button">Scan QR</button>
+            </div>
+            {loading && <div className="text-center">Se încarcă fluxul...</div>}
+            <div style={flowStyle}>
+                <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onNodeClick={onNodeClick}
+                    fitView
+                >
+                    <Background />
+                    <Controls />
+                </ReactFlow>
+            </div>
+            {/* QR Modal */}
+            {showQrModal && (
+                <div className="modal show d-block" tabIndex={-1} style={{ background: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Scanează QR Material</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowQrModal(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                <div id="web-qr-reader" ref={webQrRef} style={{ width: 300, height: 300, background: '#000', margin: '0 auto' }}></div>
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn btn-secondary" onClick={() => setShowQrModal(false)}>Închide</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </IonContent>
-        </IonPage>
+            )}
+        </Container>
     );
+
 };
 
 export default MaterialFlowView;

@@ -1,0 +1,69 @@
+/* Button Types:
+   - Emphasized: .btn-emphasized
+   - Default: .btn-default
+   - Transparent: .btn-transparent
+   - Success: .btn-success
+   - Attention: .btn-attention
+   - Negative: .btn-negative
+*/
+
+.btn-emphasized {
+  background: #3880ff;
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(56, 128, 255, 0.08);
+}
+.btn-emphasized:hover,
+.btn-emphasized:focus {
+  background: #3171e0;
+}
+
+.btn-default {
+  background: #fff;
+  color: #22223b;
+  border: 1px solid #e5e5e5;
+}
+.btn-default:hover,
+.btn-default:focus {
+  background: #f6f8fa;
+}
+
+.btn-transparent {
+  background: transparent;
+  color: #3880ff;
+  border: none;
+}
+.btn-transparent:hover,
+.btn-transparent:focus {
+  background: #e9f5ff;
+}
+
+.btn-success {
+  background: #2dd36f;
+  color: #fff;
+  border: none;
+}
+.btn-success:hover,
+.btn-success:focus {
+  background: #28ba62;
+}
+
+.btn-attention {
+  background: #ffc409;
+  color: #22223b;
+  border: none;
+}
+.btn-attention:hover,
+.btn-attention:focus {
+  background: #e0ac08;
+}
+
+.btn-negative {
+  background: #eb445a;
+  color: #fff;
+  border: none;
+}
+.btn-negative:hover,
+.btn-negative:focus {
+  background: #cf3c4f;
+}

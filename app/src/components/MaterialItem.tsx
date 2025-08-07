@@ -1,7 +1,7 @@
-import { IonButton, IonCol, IonIcon, IonItem, IonRow, IonText } from '@ionic/react';
+import { Button, Row, Col, Card } from 'react-bootstrap';
 import { Material } from '../types';
 import { MaterialMappings } from '../config/materialMappings';
-import { trash } from 'ionicons/icons';
+import { FaTrash } from 'react-icons/fa';
 
 interface MaterialItemProps {
     material: Material;
@@ -18,122 +18,110 @@ const MaterialItem: React.FC<MaterialItemProps> = ({
     onItemClick,
     onDelete,
     showDeleteButton = false,
-    detailButton = true,
     disabled = false,
     extraContent
 }) => {
     return (
-        <IonItem
-            button={onItemClick !== undefined}
-            detail={detailButton}
-            onClick={onItemClick}
-            disabled={disabled}
-        >
-            <IonCol className="w-full">
-                <IonRow >
-                    <IonCol size="6" sizeSm="3">
-                        <IonText>
-                            <h2 className="ion-text-wrap font-semibold text-lg ion-no-margin">
-                                {MaterialMappings.getMaterialTypeLabel(material.type)}
-                            </h2>
-                        </IonText>
-                    </IonCol>
-                    <IonCol size="6" sizeSm="3">
-                        <IonText >
-                            <h2 className="ion-text-wrap font-semibold text-lg ion-no-margin">
-                                {MaterialMappings.getWoodSpeciesLabel(material.specie)}
-                            </h2>
-                        </IonText>
-                    </IonCol>
-                    <IonCol size="6" sizeSm="3">
-                        <IonText color="medium">
-                            <h3 className="ion-no-margin">{material.humanId}</h3>
-                        </IonText>
-                    </IonCol>
-                    <IonCol size="6" sizeSm="3">
-                        <IonText color="medium">
-                            <h3 className="ion-no-margin">{material.data}</h3>
-                        </IonText>
-                    </IonCol>
-
-                    <IonRow>
-                    </IonRow>
+        <Card className="mb-2" onClick={disabled ? undefined : onItemClick} style={{ cursor: onItemClick && !disabled ? 'pointer' : 'default', opacity: disabled ? 0.6 : 1 }}>
+            <Card.Body>
+                <Row className="align-items-center">
+                    <Col xs={12} sm={3} className="mb-2 mb-sm-0">
+                        <h2 className="fw-semibold fs-5 mb-0">
+                            {MaterialMappings.getMaterialTypeLabel(material.type)}
+                        </h2>
+                    </Col>
+                    <Col xs={12} sm={3} className="mb-2 mb-sm-0">
+                        <h2 className="fw-semibold fs-5 mb-0">
+                            {MaterialMappings.getWoodSpeciesLabel(material.specie)}
+                        </h2>
+                    </Col>
+                    <Col xs={6} sm={3} className="mb-2 mb-sm-0">
+                        <h3 className="text-secondary mb-0">{material.humanId}</h3>
+                    </Col>
+                    <Col xs={6} sm={3} className="mb-2 mb-sm-0">
+                        <h3 className="text-secondary mb-0">{material.data}</h3>
+                    </Col>
+                </Row>
+                <Row className="mt-2">
                     {material.cod_unic_aviz && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>Cod aviz</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.cod_unic_aviz}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">Cod aviz</small>
+                            <p className="mb-0">{material.cod_unic_aviz}</p>
+                        </Col>
                     )}
                     {material.apv && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>A.P.V.</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.apv}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">A.P.V.</small>
+                            <p className="mb-0">{material.apv}</p>
+                        </Col>
                     )}
                     {material.nr_placuta_rosie && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>Nr. placuta roșie</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.nr_placuta_rosie}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">Nr. placuta roșie</small>
+                            <p className="mb-0">{material.nr_placuta_rosie}</p>
+                        </Col>
                     )}
                     {material.lungime && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>Lungime</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.lungime}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">Lungime</small>
+                            <p className="mb-0">{material.lungime}</p>
+                        </Col>
                     )}
                     {material.diametru && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>Diametru</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.diametru}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">Diametru</small>
+                            <p className="mb-0">{material.diametru}</p>
+                        </Col>
                     )}
                     {material.volum_placuta_rosie && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>V. placuta roșie</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.volum_placuta_rosie} m³</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">V. placuta roșie</small>
+                            <p className="mb-0">{material.volum_placuta_rosie} m³</p>
+                        </Col>
                     )}
                     {material.volum_total && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>V. total</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.volum_total} m³</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">V. total</small>
+                            <p className="mb-0">{material.volum_total} m³</p>
+                        </Col>
                     )}
                     {material.volum_net_paletizat && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>V. net paletizat</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.volum_net_paletizat} m³</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">V. net paletizat</small>
+                            <p className="mb-0">{material.volum_net_paletizat} m³</p>
+                        </Col>
                     )}
                     {material.volum_brut_paletizat && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>V. brut paletizat</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.volum_brut_paletizat} m³</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">V. brut paletizat</small>
+                            <p className="mb-0">{material.volum_brut_paletizat} m³</p>
+                        </Col>
                     )}
                     {material.nr_bucati && (
-                        <IonCol size="6" sizeSm="3">
-                            <IonText color="medium"><small>Bucăți</small></IonText>
-                            <IonText><p className="ion-no-margin">{material.nr_bucati}</p></IonText>
-                        </IonCol>
+                        <Col xs={6} sm={3} className="mb-2">
+                            <small className="text-secondary">Bucăți</small>
+                            <p className="mb-0">{material.nr_bucati}</p>
+                        </Col>
                     )}
-                </IonRow>
-            </IonCol>
-
-            {
-                showDeleteButton && onDelete && (
-                    <IonButton slot="end" fill="clear" color="danger" onClick={(e) => {
-                        e.stopPropagation(); // Prevent triggering item click
-                        onDelete();
-                    }}>
-                        <IonIcon icon={trash} />
-                    </IonButton>
-                )
-            }
-
-            {extraContent}
-        </IonItem >
+                </Row>
+                {showDeleteButton && onDelete && (
+                    <Button
+                        variant="outline-danger"
+                        className="position-absolute end-0 top-0 m-2"
+                        size="sm"
+                        onClick={e => {
+                            e.stopPropagation();
+                            onDelete();
+                        }}
+                        disabled={disabled}
+                        style={{ zIndex: 2 }}
+                    >
+                        <FaTrash />
+                    </Button>
+                )}
+                {extraContent}
+            </Card.Body>
+        </Card>
     );
 };
 

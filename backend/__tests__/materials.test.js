@@ -126,11 +126,17 @@ describe("Materials API", () => {
       materialId = response.body._id;
     });
 
-    test("should delete a material", async () => {
+    test("should soft delete a material", async () => {
       await request(app).delete(`/materials/${materialId}`).expect(204);
 
-      // Verify material is deleted
+      // Verify material is not found via API
       await request(app).get(`/materials/${materialId}`).expect(404);
+
+      // Verify material is still in DB but marked as deleted
+      const Material = require("../models/Material");
+      const mat = await Material.findById(materialId);
+      expect(mat).not.toBeNull();
+      expect(mat.deleted).toBe(true);
     });
 
     test("should return 404 for non-existent material", async () => {

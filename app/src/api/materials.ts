@@ -1,3 +1,8 @@
+// Get the flow for a single material by ID
+const getMaterialFlow = async (id: string) => {
+    const response = await apiClient.get(`/materials/${id}/flow`);
+    return response.data;
+};
 // import axios, { isCancel, AxiosError } from 'axios';
 // const save = async (materialData: any) => {
 //     axios.post(`${import.meta.env.VITE_WORKER_URL}/addMaterial`, materialData,
@@ -63,4 +68,4 @@ const processMaterials = async (sourceIds: string[], outputConfig: ProcessConfig
     return response.data;
 };
 
-export { save, getAll, getById, update, deleteMaterial, processMaterials };
+export { save, getAll, getById, update, deleteMaterial, processMaterials, getMaterialFlow };

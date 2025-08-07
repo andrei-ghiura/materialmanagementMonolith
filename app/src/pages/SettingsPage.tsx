@@ -1,41 +1,58 @@
+
 import React from 'react';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonToggle, IonButtons, IonButton } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
-import { useDarkMode } from '../contexts/DarkModeContext';
+import { useUiState } from '../components/ui/UiStateContext';
+import { useNavigate } from 'react-router-dom';
+import { Container, Row, Col, Card, Button, ListGroup } from 'react-bootstrap';
+
 
 const SettingsPage: React.FC = () => {
-    const { paletteToggle, toggleDarkPalette } = useDarkMode();
-    const history = useHistory();
+    const navigate = useNavigate();
 
-    const handleToggle = (checked: boolean) => {
-        toggleDarkPalette(checked);
-    };
+    const { theme, setTheme, toggleTheme } = useUiState();
 
     return (
-        <IonPage>
-            <IonHeader>
-                <IonToolbar>
-                    <IonButtons slot="start">
-                        <IonButton fill="clear" onClick={() => history.goBack()}>
-                            <span style={{ fontSize: 20 }}>←</span>
-                        </IonButton>
-                    </IonButtons>
-                    <IonTitle>Setări</IonTitle>
-                </IonToolbar>
-            </IonHeader>
-            <IonContent className="ion-padding">
-                <IonList>
-                    <IonItem>
-                        <IonLabel>Mod Întunecat</IonLabel>
-                        <IonToggle
-                            checked={paletteToggle}
-                            onIonChange={e => handleToggle(e.detail.checked)}
-                            data-cy="dark-mode-toggle"
-                        />
-                    </IonItem>
-                </IonList>
-            </IonContent>
-        </IonPage>
+        <Container className="mt-4">
+            <Row className="align-items-center mb-3">
+                <Col xs="auto">
+                    <Button className="btn-transparent" onClick={() => navigate(-1)} style={{ fontSize: 20, textDecoration: 'none' }}>
+                        ←
+                    </Button>
+                </Col>
+                <Col><h2 className="mb-0">Setări</h2></Col>
+            </Row>
+            <Row className="justify-content-center">
+                <Col xs={12} md={8} lg={6}>
+                    <Card>
+                        <Card.Body>
+                            <Card.Title>Preferințe</Card.Title>
+                            <ListGroup variant="flush">
+                                <ListGroup.Item>
+                                    <div className="d-flex align-items-center justify-content-between">
+                                        <span>Temă aplicație</span>
+                                        <div>
+                                            <Button
+                                                className={`btn-emphasized me-2${theme === 'light' ? '' : ' btn-transparent'}`}
+                                                size="sm"
+                                                onClick={() => setTheme('light')}
+                                            >
+                                                Luminoasă
+                                            </Button>
+                                            <Button
+                                                className={`btn-emphasized${theme === 'dark' ? '' : ' btn-transparent'}`}
+                                                size="sm"
+                                                onClick={() => setTheme('dark')}
+                                            >
+                                                Întunecată
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </ListGroup.Item>
+                            </ListGroup>
+                        </Card.Body>
+                    </Card>
+                </Col>
+            </Row>
+        </Container>
     );
 };
 

@@ -40,8 +40,7 @@ const SelectedMaterialsList: React.FC<SelectedMaterialsListProps> = ({
                                         <div className="flex justify-end mt-2">
                                             <IonButton
                                                 size="small"
-                                                color="danger"
-                                                fill="outline"
+                                                className="btn-negative"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onRemoveMaterial(material._id || material.id || '');

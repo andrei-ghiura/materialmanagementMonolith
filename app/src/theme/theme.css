@@ -1,0 +1,137 @@
+[data-bs-theme="dark"] nav {
+  background: var(--header-bg, #23223b) !important;
+  color: var(--header-color, #f1f3f5) !important;
+}
+/* Light and dark theme overrides for react-bootstrap */
+/* Dark theme variables and overrides */
+[data-bs-theme="dark"] {
+  --bs-body-bg: #181a1b;
+  --bs-body-color: #f1f3f5;
+  --bs-list-group-bg: #23272b;
+  --bs-list-group-color: #f1f3f5;
+  --bs-list-group-active-bg: #339af0;
+  --bs-list-group-active-color: #fff;
+  --bs-modal-bg: #23272b;
+  --bs-modal-color: #f1f3f5;
+  --bs-btn-bg: #23272b;
+  --bs-btn-color: #f1f3f5;
+  --bs-border-color: #343a40;
+
+  /* Cards */
+  --bs-card-bg: #23223b;
+  --bs-card-color: #f1f3f5;
+  --bs-card-border-color: #343a40;
+
+  /* Header/Footer/Sidebar */
+  --header-bg: #23223b;
+  --header-color: #f1f3f5;
+  --footer-bg: #23223b;
+  --footer-color: #f1f3f5;
+  --sidebar-bg: #23223b;
+  --sidebar-color: #f1f3f5;
+
+  /* Form controls */
+  --bs-form-control-bg: #23272b;
+  --bs-form-control-color: #f1f3f5;
+  --bs-form-control-border-color: #343a40;
+
+  /* Misc */
+  --bs-table-bg: #23272b;
+  --bs-table-color: #f1f3f5;
+  --bs-table-border-color: #343a40;
+
+  /* Apply custom properties to elements */
+}
+
+/* Ensure body is styled in dark theme */
+[data-bs-theme="dark"] body, body[data-bs-theme="dark"] {
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+  [data-bs-theme="dark"] .card {
+    background: var(--bs-card-bg) !important;
+    color: var(--bs-card-color) !important;
+    border-color: var(--bs-card-border-color) !important;
+  }
+  [data-bs-theme="dark"] header {
+    background: var(--header-bg) !important;
+    color: var(--header-color) !important;
+  }
+  /* Navbar background for dark theme */
+  [data-bs-theme="dark"] .navbar,
+  [data-bs-theme="dark"] header .navbar {
+    background: var(--header-bg, #23223b) !important;
+    color: var(--header-color, #f1f3f5) !important;
+    border-bottom: 1px solid var(--bs-border-color) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  [data-bs-theme="dark"] .navbar > .container,
+  [data-bs-theme="dark"] .navbar > .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  [data-bs-theme="dark"] header {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+[data-bs-theme="dark"] footer {
+  background: var(--footer-bg) !important;
+  color: var(--footer-color) !important;
+}
+[data-bs-theme="dark"] aside {
+  background: var(--sidebar-bg) !important;
+  color: var(--sidebar-color) !important;
+}
+[data-bs-theme="dark"] .list-group-item.active,
+[data-bs-theme="dark"] .list-group-item.active:focus,
+[data-bs-theme="dark"] .list-group-item.active:hover {
+  background: #1864ab !important;
+  color: #fff !important;
+  border-color: #339af0 !important;
+  box-shadow: 0 2px 8px rgba(51, 154, 240, 0.1);
+}
+[data-bs-theme="dark"] .form-control {
+  background: var(--bs-form-control-bg) !important;
+  color: var(--bs-form-control-color) !important;
+  border-color: var(--bs-form-control-border-color) !important;
+}
+[data-bs-theme="dark"] .form-control:disabled,
+[data-bs-theme="dark"] .form-control[readonly] {
+  background: #23272b !important;
+  color: #868e96 !important;
+  border-color: #343a40 !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}
+[data-bs-theme="dark"] table {
+  background: var(--bs-table-bg) !important;
+  color: var(--bs-table-color) !important;
+  border-color: var(--bs-table-border-color) !important;
+}
+[data-bs-theme="dark"] main {
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color) !important;
+}
+[data-bs-theme="light"] {
+  --bs-body-bg: #fff;
+  --bs-body-color: #212529;
+  --bs-list-group-bg: #fff;
+  --bs-list-group-color: #212529;
+  --bs-list-group-active-bg: #e9f5ff;
+  --bs-list-group-active-color: #212529;
+  --bs-modal-bg: #fff;
+  --bs-modal-color: #212529;
+  --bs-btn-bg: #fff;
+  --bs-btn-color: #212529;
+  --bs-border-color: #e5e5e5;
+}
+[data-bs-theme="light"] .navbar,
+[data-bs-theme="light"] header .navbar {
+  background: var(--header-bg, #fff) !important;
+  color: var(--header-color, #212529) !important;
+  border-bottom: 1px solid var(--bs-border-color) !important;
+}

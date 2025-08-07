@@ -1,5 +1,5 @@
 import { IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonLabel, IonPage, IonList, useIonViewWillEnter } from "@ionic/react";
-import { useParams, useHistory } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { getAll } from "../api/materials";
 import labels from "../labels";
@@ -10,7 +10,7 @@ import { Capacitor } from '@capacitor/core';
 
 const MaterialComponents = () => {
     const { id } = useParams<{ id: string }>();
-    const history = useHistory();
+    const navigate = useNavigate();
     const [material, setMaterial] = useState<Material | null>(null);
     const [primeComponents, setPrimeComponents] = useState<Material[]>([]);
     const [processedComponents, setProcessedComponents] = useState<Material[]>([]);

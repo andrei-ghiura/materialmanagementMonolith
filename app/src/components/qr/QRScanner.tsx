@@ -80,7 +80,7 @@ const QRScanner: React.FC<QRScannerProps> = ({
                 <IonToolbar>
                     <IonTitle>{title}</IonTitle>
                     <IonButtons slot="end">
-                        <IonButton onClick={handleClose}>
+                        <IonButton className="btn-transparent" onClick={handleClose}>
                             <IonIcon icon={close}></IonIcon>
                         </IonButton>
                     </IonButtons>
