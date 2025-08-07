@@ -9,24 +9,14 @@ const {
 
 async function connectToDatabase() {
   console.log("Connecting to MongoDB:" + process.env.MONGODB_URL);
-  const dbUrl =
-    process.env.MONGODB_URL || "mongodb://127.0.0.1:27017/materialmanager";
+  const dbUrl = process.env.MONGODB_URL;
   try {
     await mongoose.connect(dbUrl, {
-      user: process.env.MONGODB_USER || "root",
-      pass: process.env.MONGODB_PASSWORD || "root",
+      user: process.env.MONGODB_APP_USER,
+      pass: process.env.MONGODB_APP_PASSWORD,
     });
 
     console.log("Connected to MongoDB");
-
-    // Try to drop the problematic id_1 index that's causing duplicate key errors
-    try {
-      await mongoose.connection.db.collection("material").dropIndex("id_1");
-      console.log("Successfully dropped the id_1 index");
-    } catch (indexError) {
-      // If the index doesn't exist, that's fine
-      console.log("Note: id_1 index not found or already dropped");
-    }
   } catch (err) {
     console.error("MongoDB connection error:", err);
     process.exit(1);

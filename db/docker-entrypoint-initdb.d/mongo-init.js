@@ -25,11 +25,9 @@ if (!db.getCollectionNames().includes("processings")) {
   db.processings.createIndex({ sourceIds: 1 });
   db.processings.createIndex({ outputIds: 1 });
 }
-
-// Create application user with proper permissions
-// This user will be used by the Node.js application
-const appUser = "app_user_mm_202508";
-const appPassword = "ob76Be6LOIQWAixn8KIcBEOL";
+// Use environment variables for app user and password (set in docker-compose)
+var appUser = process.env["MONGO_APP_USER"];
+var appPassword = process.env["MONGO_APP_PASSWORD"];
 
 if (!db.getUser(appUser)) {
   db.createUser({

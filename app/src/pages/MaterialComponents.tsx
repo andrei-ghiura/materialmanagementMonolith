@@ -170,7 +170,7 @@ const MaterialComponents = () => {
                 </IonToolbar>
             </IonHeader>
             <IonContent className="ion-padding">
-                <IonButton expand="block" color="tertiary" onClick={exportPDF} className="mb-4"> {/* MODIFIED: Added Tailwind class for margin */}
+                <IonButton expand="block" color="tertiary" onClick={exportPDF} className="mb-4" data-cy="export-pdf-btn"> {/* MODIFIED: Added Tailwind class for margin */}
                     Exporta lista ca PDF
                 </IonButton>
 
@@ -183,7 +183,7 @@ const MaterialComponents = () => {
                         ) : (
                             <IonList>
                                 {primeComponents.map((comp) => (
-                                    <IonItem button detail={true} key={comp.id} onClick={() => history.push(`/material/${comp.id}`)} className="py-2"> {/* MODIFIED: Adjusted padding */}
+                                    <IonItem button detail={true} key={comp.id} onClick={() => history.push(`/material/${comp.id}`)} className="py-2" data-cy={`prime-component-item-${comp.id}`}> {/* MODIFIED: Adjusted padding */}
                                         <IonLabel>
                                             <h3 className="text-sm font-medium m-0">{comp.nume}</h3> {/* MODIFIED: Adjusted font size */}
                                             <p className="text-xs text-gray-500 m-0">{comp.tip}</p> {/* MODIFIED: Adjusted font size and color */}

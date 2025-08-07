@@ -1,4 +1,4 @@
-import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonFabList, IonHeader, IonIcon, IonList, IonPage, IonTitle, IonToolbar, useIonAlert, IonItemOption, IonItemOptions, IonItemSliding, IonModal, IonMenuButton } from '@ionic/react';
+import { IonButton, IonButtons, IonContent, IonFab, IonFabButton, IonFabList, IonHeader, IonIcon, IonList, IonPage, IonTitle, IonToolbar, useIonAlert, IonItemOption, IonItemOptions, IonItemSliding, IonModal, IonMenuButton, IonItem } from '@ionic/react';
 import labels from '../labels';
 import { add, qrCode, cogOutline, close } from 'ionicons/icons';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
@@ -18,7 +18,7 @@ const MaterialListView: React.FC = () => {
   const [presentAlert] = useIonAlert();
   const router = useIonRouter();
 
-  const [materials, setMaterials] = useState([])
+  const [materials, setMaterials] = useState<Material[]>([])
   const today = new Date();
   const lastWeeks = new Date();
   lastWeeks.setDate(today.getDate() - 14);
@@ -141,31 +141,18 @@ const MaterialListView: React.FC = () => {
       <IonHeader>
         <IonToolbar>
           <IonButtons slot="start">
-            <IonMenuButton />
+            <IonMenuButton data-cy="menu-btn" />
           </IonButtons>
           <IonTitle>{labels.MaterialListView}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={() => { scan() }}>
-              <IonIcon ios={qrCode} md={qrCode}> </IonIcon>
-            </IonButton>
-          </IonButtons>
         </IonToolbar>
       </IonHeader>
-      <IonContent fullscreen>
-        <IonHeader collapse="condense">
-          <IonToolbar>
-            <IonTitle size="large">{labels.MaterialListView}</IonTitle>
-          </IonToolbar>
-        </IonHeader>
-
-        {/* Filters removed for brevity */}
-        <IonList>
-          {materials?.map((material: Material) => (
-            <IonItemSliding key={material.id}>
-              <MaterialItem
-                material={material}
-                onItemClick={() => { router.push(`/material/${material._id}`, 'forward', 'push'); }}
-              />
+      <IonContent className="ion-padding">
+        <IonList data-cy="material-list">
+          {materials.map((material) => (
+            <IonItemSliding key={material.id || material._id}>
+              <IonItem button data-cy={`material-list-item-${material.id || material._id}`} onClick={() => router.push(`/material/${material.id || material._id}`)}>
+                <MaterialItem material={material} />
+              </IonItem>
               <IonItemOptions side="end">
                 <IonItemOption color="danger" onClick={() => handleDeleteMaterial(material.id)}>
                   Delete
@@ -174,111 +161,111 @@ const MaterialListView: React.FC = () => {
             </IonItemSliding>
           ))}
         </IonList>
-      </IonContent>
-      <IonFab slot="fixed" vertical="bottom" horizontal="start">
-        <IonFabButton>
-          <IonIcon icon={add}></IonIcon>
-        </IonFabButton>
-        <IonFabList side="top">
-          <IonButton onClick={() => router.push('/processing', 'forward', 'push')}>
-            Prelucrare
-            <IonIcon icon={cogOutline}></IonIcon>
-          </IonButton>
-          <IonButton onClick={() => router.push('/material/', 'forward', 'push')}>
-            Recepție
+        <IonFab slot="fixed" vertical="bottom" horizontal="start">
+          <IonFabButton>
             <IonIcon icon={add}></IonIcon>
-          </IonButton>
-          <IonButton onClick={scan}>
-            Scanează Material
-            <IonIcon icon={qrCode}></IonIcon>
-          </IonButton>
-        </IonFabList>
-      </IonFab>
-      {/* Web QR Modal */}
-      <IonModal
-        isOpen={showWebQrModal}
-        onDidDismiss={closeWebQrModal}
-        onWillPresent={() => {
-          setTimeout(() => {
-            if (webQrRef.current && !html5QrInstance.current) {
-              html5QrInstance.current = new Html5Qrcode(webQrRef.current.id);
-              html5QrInstance.current.start(
-                {
-                  facingMode: 'environment',
-                  aspectRatio: 1
-                },
-                {
-                  fps: 10,
-                  qrbox: 250,
-                  disableFlip: true,
-                  videoConstraints: {
-                    aspectRatio: 1,
-                    facingMode: 'environment'
-                  }
-                },
-                async (decodedText) => {
-                  await html5QrInstance.current?.stop();
-                  setShowWebQrModal(false);
-                  let id: string | null = null;
-                  try {
-                    const data = JSON.parse(decodedText.trim());
-                    if (data && data.humanId) {
-                      id = data.humanId;
+          </IonFabButton>
+          <IonFabList side="top">
+            <IonButton onClick={() => router.push('/processing', 'forward', 'push')}>
+              Prelucrare
+              <IonIcon icon={cogOutline}></IonIcon>
+            </IonButton>
+            <IonButton onClick={() => router.push('/material/', 'forward', 'push')} data-cy="add-material-btn">
+              Recepție
+              <IonIcon icon={add}></IonIcon>
+            </IonButton>
+            <IonButton onClick={scan} data-cy="scan-qr-btn">
+              Scanează Material
+              <IonIcon icon={qrCode}></IonIcon>
+            </IonButton>
+          </IonFabList>
+        </IonFab>
+        {/* Web QR Modal */}
+        <IonModal
+          isOpen={showWebQrModal}
+          onDidDismiss={closeWebQrModal}
+          onWillPresent={() => {
+            setTimeout(() => {
+              if (webQrRef.current && !html5QrInstance.current) {
+                html5QrInstance.current = new Html5Qrcode(webQrRef.current.id);
+                html5QrInstance.current.start(
+                  {
+                    facingMode: 'environment',
+                    aspectRatio: 1
+                  },
+                  {
+                    fps: 10,
+                    qrbox: 250,
+                    disableFlip: true,
+                    videoConstraints: {
+                      aspectRatio: 1,
+                      facingMode: 'environment'
                     }
-                  } catch {
-                    id = decodedText.trim();
-                  }
-                  if (id) {
-                    const materials = await getAll();
-                    const found = materials && materials.find((m: Material) => m.id === id);
-                    if (found) {
-                      router.push(`/material/${id}`, 'forward', 'push');
+                  },
+                  async (decodedText) => {
+                    await html5QrInstance.current?.stop();
+                    setShowWebQrModal(false);
+                    let id: string | null = null;
+                    try {
+                      const data = JSON.parse(decodedText.trim());
+                      if (data && data.humanId) {
+                        id = data.humanId;
+                      }
+                    } catch {
+                      id = decodedText.trim();
+                    }
+                    if (id) {
+                      const materials = await getAll();
+                      const found = materials && materials.find((m: Material) => m.id === id);
+                      if (found) {
+                        router.push(`/material/${id}`, 'forward', 'push');
+                      } else {
+                        await presentAlert({
+                          header: 'Material inexistent',
+                          message: `Materialul scanat nu există în aplicație: ${id}`,
+                          buttons: ['OK'],
+                        });
+                      }
                     } else {
                       await presentAlert({
-                        header: 'Material inexistent',
-                        message: `Materialul scanat nu există în aplicație: ${id}`,
+                        header: 'QR invalid',
+                        message: 'Codul QR scanat nu conține date valide de material.',
                         buttons: ['OK'],
                       });
                     }
-                  } else {
-                    await presentAlert({
-                      header: 'QR invalid',
-                      message: 'Codul QR scanat nu conține date valide de material.',
-                      buttons: ['OK'],
-                    });
+                  },
+                  (error) => {
+                    // Only log errors that aren't about not finding a QR code
+                    if (!error.includes("NotFoundException")) {
+                      console.error(error);
+                    }
                   }
-                },
-                (error) => {
-                  // Only log errors that aren't about not finding a QR code
-                  if (!error.includes("NotFoundException")) {
-                    console.error(error);
-                  }
-                }
-              );
-            }
-          }, 100);
-        }}
-        className="qr-scanner-modal">
-        <IonHeader>
-          <IonToolbar>
-            <IonTitle>Scanare QR</IonTitle>
-            <IonButtons slot="end">
-              <IonButton onClick={closeWebQrModal}>
-                <IonIcon icon={close}></IonIcon>
-              </IonButton>
-            </IonButtons>
-          </IonToolbar>
-        </IonHeader>
-        <IonContent className="ion-padding">
-          <div className="flex flex-col h-full items-center justify-center">
-            <div
-              id="web-qr-reader"
-              ref={webQrRef}
-              className="w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden mx-auto"
-            ></div>
-          </div>
-        </IonContent>
-      </IonModal>
+                );
+              }
+            }, 100);
+          }}
+          className="qr-scanner-modal">
+          <IonHeader>
+            <IonToolbar>
+              <IonTitle>Scanare QR</IonTitle>
+              <IonButtons slot="end">
+                <IonButton onClick={closeWebQrModal}>
+                  <IonIcon icon={close}></IonIcon>
+                </IonButton>
+              </IonButtons>
+            </IonToolbar>
+          </IonHeader>
+          <IonContent className="ion-padding">
+            <div className="flex flex-col h-full items-center justify-center">
+              <div
+                id="web-qr-reader"
+                ref={webQrRef}
+                className="w-full max-w-md aspect-square bg-black rounded-lg overflow-hidden mx-auto"
+              ></div>
+            </div>
+          </IonContent>
+        </IonModal>
+      </IonContent>
     </IonPage>
   );
 };

@@ -505,10 +505,10 @@ const ProcessingView: React.FC = () => {
                                     placeholder="Introdu ID-ul materialului"
                                     className="flex-1"
                                 ></IonInput>
-                                <IonButton onClick={() => setShowMaterialSelectionModal(true)}>
+                                <IonButton onClick={() => setShowMaterialSelectionModal(true)} data-cy="add-material-by-id-btn">
                                     <IonIcon icon={add} />
                                 </IonButton>
-                                <IonButton onClick={handleQrScan}>
+                                <IonButton onClick={handleQrScan} data-cy="scan-qr-btn">
                                     <IonIcon icon={qrCode} />
                                 </IonButton>
                             </div>
@@ -536,13 +536,14 @@ const ProcessingView: React.FC = () => {
                         ) : (
                             <IonList>
                                 {selectedMaterials.map((material, index) => (
-                                    <MaterialItem
-                                        key={index}
-                                        material={material}
-                                        detailButton={false}
-                                        showDeleteButton={true}
-                                        onDelete={() => removeMaterial(index)}
-                                    />
+                                    <div data-cy={`selected-material-item-${material._id}`} key={index}>
+                                        <MaterialItem
+                                            material={material}
+                                            detailButton={false}
+                                            showDeleteButton={true}
+                                            onDelete={() => removeMaterial(index)}
+                                        />
+                                    </div>
                                 ))}
                             </IonList>
                         )}
@@ -619,6 +620,7 @@ const ProcessingView: React.FC = () => {
                                 expand="block"
                                 onClick={processMaterials}
                                 disabled={selectedMaterials.length === 0 || isProcessing || !outputConfig.processingType}
+                                data-cy="process-btn"
                             >
                                 <IonIcon icon={save} slot="start" />
                                 {isProcessing ? 'Se procesează...' : 'Procesează Materialele'}

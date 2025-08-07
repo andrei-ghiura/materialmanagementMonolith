@@ -422,7 +422,7 @@ const MaterialView = () => {
                     </IonButtons>
                     <IonTitle>{labels.detaliiMaterial}</IonTitle>
                     <IonButtons slot="end">
-                        <IonButton color="success" onClick={handleConfirm}>
+                        <IonButton color="success" onClick={handleConfirm} data-cy="save-material-btn">
                             <span style={{ fontWeight: 600 }}>{isNew ? labels.adauga : labels.salveaza}</span>
                         </IonButton>
                     </IonButtons>
@@ -493,7 +493,7 @@ const MaterialView = () => {
                                     <IonLabel color="medium">Nicio componenta adaugata.</IonLabel>
                                 ) : (
                                     componente.filter(isMaterial).map((comp, index) => (
-                                        <IonItem button detail key={index} onClick={() => history.push(`/material/${comp._id}`)} lines="full" className="py-2 min-h-[auto]">
+                                        <IonItem button detail key={index} onClick={() => history.push(`/material/${comp._id}`)} lines="full" className="py-2 min-h-[auto]" data-cy={`component-list-item-${comp._id}`}>
                                             <IonLabel>
                                                 <h3 className="m-0 text-sm font-medium">{comp.humanId}</h3>
                                                 <p className="m-0 text-xs text-gray-600">
@@ -505,7 +505,7 @@ const MaterialView = () => {
                                     ))
                                 )}
                                 <div className="flex justify-center mt-2 mb-1">
-                                    <IonButton color="primary" shape="round" onClick={scan} size="small">
+                                    <IonButton color="primary" shape="round" onClick={scan} size="small" data-cy="add-component-btn">
                                         <span className="font-semibold">{labels.adaugaComponenta}</span>
                                     </IonButton>
                                 </div>
@@ -518,7 +518,7 @@ const MaterialView = () => {
                                             <img src={labelImageUrl} alt="Printable label" className="" />
                                         )}
                                     </div>
-                                    <IonButton color="tertiary" onClick={handleDownload} size="small">
+                                    <IonButton color="tertiary" onClick={handleDownload} size="small" data-cy="download-qr-btn">
                                         <span className="text-lg mr-1" role="img" aria-label="print">⎙</span>
                                         Descarcă Etichetă
                                     </IonButton>
@@ -530,7 +530,7 @@ const MaterialView = () => {
             <IonFooter>
                 <IonToolbar className="py-0 min-h-[auto]">
                     <IonButtons slot="start">
-                        {!isNew && <IonButton color="danger" onClick={handleDelete} size="small">
+                        {!isNew && <IonButton color="danger" onClick={handleDelete} size="small" data-cy="delete-material-btn">
                             <span className="text-lg mr-1" role="img" aria-label="delete">🗑️</span>
                             Șterge
                         </IonButton>
@@ -538,7 +538,7 @@ const MaterialView = () => {
 
                     </IonButtons>
                     <IonButtons slot="end">
-                        <IonButton color="medium" onClick={() => handleNav(() => history.push(`/material/${material.id}/components`))} size="small">
+                        <IonButton color="medium" onClick={() => handleNav(() => history.push(`/material/${material.id}/components`))} size="small" data-cy="export-components-btn">
                             Export
                         </IonButton>
                     </IonButtons>
