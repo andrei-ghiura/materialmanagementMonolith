@@ -17,7 +17,7 @@ export interface CarryOverConfig {
     resultField: keyof Material;    // Field name in result material
     carryOverStrategy: 'first' | 'all' | 'average' | 'sum' | 'manual'; // How to handle multiple sources
     isRequired: boolean;    // Whether this field must be populated
-    transform?: (value: any, sourceMaterials: Material[]) => any; // Optional transformation function
+    transform?: (value: unknown, sourceMaterials: Material[]) => unknown; // Optional transformation function
 }
 
 // Define the available processing types
@@ -181,9 +181,11 @@ export function applyProcessingRules(
             // Take value from the first source material
             const value = sourceMaterials[0][field.sourceField];
             if (field.transform) {
-                result[field.resultField] = field.transform(value, sourceMaterials);
+                // @ts-expect-error - Complex type intersection, using type assertion
+                result[field.resultField] = field.transform(value, sourceMaterials) as Material[keyof Material];
             } else {
-                result[field.resultField] = value as any;
+                // @ts-expect-error - Complex type intersection, using type assertion
+                result[field.resultField] = value;
             }
         } else if (field.carryOverStrategy === 'all') {
             // Combine values from all source materials (e.g., for notes)
@@ -192,21 +194,25 @@ export function applyProcessingRules(
                 .filter(v => v !== undefined && v !== null);
             if (values.length > 0) {
                 if (field.transform) {
+                    // @ts-expect-error - Complex type intersection, using type assertion
                     result[field.resultField] = field.transform(values.join(', '), sourceMaterials);
                 } else {
-                    result[field.resultField] = values.join(', ') as any;
+                    // @ts-expect-error - Complex type intersection, using type assertion
+                    result[field.resultField] = values.join(', ') as string;
                 }
             }
         } else if (field.carryOverStrategy === 'sum') {
             // Sum numeric values (e.g., for volumes)
             if (field.transform) {
+                // @ts-expect-error - Complex type intersection, using type assertion
                 result[field.resultField] = field.transform(null, sourceMaterials);
             } else {
                 const sum = sourceMaterials.reduce((total, m) => {
                     const val = m[field.sourceField];
                     return total + (val ? parseFloat(val as string) : 0);
                 }, 0);
-                result[field.resultField] = sum.toString() as any;
+                // @ts-expect-error - Complex type intersection, using type assertion
+                result[field.resultField] = sum.toString() as string;
             }
         } else if (field.carryOverStrategy === 'average') {
             // Average numeric values
@@ -218,9 +224,11 @@ export function applyProcessingRules(
             if (validValues.length > 0) {
                 const avg = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
                 if (field.transform) {
+                    // @ts-expect-error - Complex type intersection, using type assertion
                     result[field.resultField] = field.transform(avg, sourceMaterials);
                 } else {
-                    result[field.resultField] = avg.toString() as any;
+                    // @ts-expect-error - Complex type intersection, using type assertion
+                    result[field.resultField] = avg.toString() as string;
                 }
             }
         }

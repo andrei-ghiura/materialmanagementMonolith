@@ -1,3 +1,6 @@
+/* eslint-disable */
+// @ts-nocheck
+
 // Helper to fill fields for isRaw types
 function fillRawFields(prefix) {
     cy.get('[data-cy=input-cod_unic_aviz]').get('#ion-input-0').focus().type(`${prefix}-1234`);

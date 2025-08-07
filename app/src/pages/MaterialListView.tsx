@@ -150,7 +150,7 @@ const MaterialListView: React.FC = () => {
         <IonList data-cy="material-list">
           {materials.map((material) => (
             <IonItemSliding key={material.id || material._id}>
-              <IonItem button data-cy={`material-list-item-${material.id || material._id}`} onClick={() => router.push(`/material/${material.id || material._id}`)}>
+              <IonItem button className='ion-no-padding' data-cy={`material-list-item-${material.id || material._id}`} onClick={() => router.push(`/material/${material.id || material._id}`)}>
                 <MaterialItem material={material} />
               </IonItem>
               <IonItemOptions side="end">

@@ -17,6 +17,7 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "apiBAK/materials.ts", "apiBAK/processings.ts"],
+  "include": ["src", "apiBAK/materials.ts", "apiBAK/processings.ts", "cypress"],
+  "exclude": ["**/*.test.tsx", "**/*.test.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

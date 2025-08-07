@@ -9,11 +9,21 @@ interface ProcessingRequest {
     additionalFields?: Partial<Material>; // Any manually entered fields
 }
 
+interface ProcessingRecord {
+    id: string;
+    sourceIds: string[];
+    processingTypeId: string;
+    count: number;
+    createdAt: string;
+    updatedAt: string;
+    status: string;
+}
+
 interface ProcessingResponse {
     message: string;
     outputMaterials: Material[];
     updatedSourceMaterials: Material[];
-    processing: any; // The processing record
+    processing: ProcessingRecord; // The processing record
 }
 
 /**
