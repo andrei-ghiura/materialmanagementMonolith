@@ -16,6 +16,25 @@ const isWeb = () => {
 };
 
 const MaterialView = () => {
+    // Dark mode logic: listen for changes and apply/remove dark class
+    useEffect(() => {
+        const updateDarkMode = () => {
+            const saved = localStorage.getItem('darkMode');
+            if (saved !== null) {
+                document.body.classList.toggle('dark', saved === 'true');
+            } else {
+                // Use system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.body.classList.toggle('dark', prefersDark);
+            }
+        };
+        updateDarkMode();
+        // Listen for storage changes (in case user toggles in another tab)
+        window.addEventListener('storage', updateDarkMode);
+        return () => {
+            window.removeEventListener('storage', updateDarkMode);
+        };
+    }, []);
     const history = useHistory();
     const { id } = useParams<{ id: string }>();
     const [presentAlert] = useIonAlert();
@@ -434,68 +453,162 @@ const MaterialView = () => {
                 <IonGrid>
                     <IonRow className="ion-justify-content-center">
                         {/* Left Column: Material Details */}
-                        <IonCol size="12" size-lg="6" className="flex flex-col px-2 py-1"> {/* MODIFIED: Removed IonCard, added padding to IonCol */}
-                            <div className="bg-white rounded-lg shadow p-3 mb-2 flex-grow"> {/* MODIFIED: Added a div with styling to replace IonCard visual */}
-                                <h3 className="text-xl font-bold mb-2">{labels.detaliiMaterial}</h3>
-                                <p className="text-sm text-gray-500 mb-3">Câmpurile marcate cu * sunt obligatorii</p>
-                                <IonRow>
-                                    <IonCol>
-
-                                        <IonItem>
-                                            <IonSelect
-                                                interfaceOptions={{
-                                                    cssClass: 'cy-material-type-alert'
-                                                }}
-                                                required
-                                                label={`${labels.type} *`}
-                                                value={material.type}
-                                                className={!material.type ? 'ion-invalid' : ''}
-                                                onIonChange={(ev) => changeMaterial('type', ev.target.value)}
-                                                data-cy="material-type-select"
-                                                disabled={!isNew}
-                                            >
-                                                {MaterialMappings.getMaterialTypeOptions().map((type) => (
-                                                    <IonSelectOption key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</IonSelectOption>
-                                                ))}
-                                            </IonSelect>
-                                        </IonItem>
-                                    </IonCol>
-                                    <IonCol>
-                                        <IonItem>
-                                            <IonSelect
-                                                required
-                                                label={`${labels.specie} *`}
-                                                value={material.specie}
-                                                className={!material.specie ? 'ion-invalid' : ''}
-                                                onIonChange={(ev) => changeMaterial('specie', ev.target.value)}
-                                                data-cy="material-specie-select"
-                                                interfaceOptions={{
-                                                    cssClass: 'cy-material-specie-alert'
-                                                }}
-                                                disabled={!isNew}
-                                            >
-                                                {MaterialMappings.getWoodSpeciesOptions().map((type) => (
-                                                    <IonSelectOption key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</IonSelectOption>
-                                                ))}
-                                            </IonSelect>
-                                        </IonItem>
-                                    </IonCol>
-                                    <IonCol size="12" ><IonItem> <IonInput data-cy="input-cod_unic_aviz" onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" disabled={!isNew} /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-data" onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" /> </IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-apv" onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" disabled={!isNew} /> </IonItem></IonCol>
-                                    {isFieldVisible('nr_placuta_rosie') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-nr_placuta_rosie" onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-lat" onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" disabled={!isNew} /> °</IonItem></IonCol>
-                                    <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-log" onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" disabled={!isNew} /> °</IonItem></IonCol>
-                                    {isFieldVisible('lungime') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-lungime" onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
-                                    {isFieldVisible('diametru') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-diametru" onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
-                                    {isFieldVisible('volum_placuta_rosie') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_placuta_rosie" onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isFieldVisible('volum_total') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_total" onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isFieldVisible('nr_bucati') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-nr_bucati" onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
-                                    {isFieldVisible('volum_net_paletizat') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_net_paletizat" onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isFieldVisible('volum_brut_paletizat') && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput data-cy="input-volum_brut_paletizat" onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
-                                    <IonCol size="12"><IonItem> <IonTextarea data-cy="input-observatii" onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" /> </IonItem></IonCol>
-                                </IonRow>
-
+                        <IonCol size="12" size-lg="6" className="flex flex-col px-2 py-1">
+                            <div className="w-full max-w-2xl mx-auto">
+                                <section className="bg-white rounded-xl shadow-lg p-5 mb-4 border border-gray-200">
+                                    <h2 className="text-2xl font-bold mb-4 text-primary-700">{labels.detaliiMaterial}</h2>
+                                    <p className="text-base text-gray-600 mb-6">Câmpurile marcate cu <span className="text-red-500">*</span> sunt obligatorii</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Material Type */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.type} <span className="text-red-500">*</span></label>
+                                            {isNew ? (
+                                                <IonSelect
+                                                    interfaceOptions={{ cssClass: 'cy-material-type-alert' }}
+                                                    required
+                                                    label={labels.type}
+                                                    value={material.type}
+                                                    className={!material.type ? 'ion-invalid' : ''}
+                                                    onIonChange={(ev) => changeMaterial('type', ev.target.value)}
+                                                    data-cy="material-type-select"
+                                                >
+                                                    {MaterialMappings.getMaterialTypeOptions().map((type) => (
+                                                        <IonSelectOption key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</IonSelectOption>
+                                                    ))}
+                                                </IonSelect>
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.type}:</b> {MaterialMappings.getMaterialTypeLabel(material.type)}</div>
+                                            )}
+                                        </div>
+                                        {/* Wood Species */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.specie} <span className="text-red-500">*</span></label>
+                                            {isNew ? (
+                                                <IonSelect
+                                                    required
+                                                    label={labels.specie}
+                                                    value={material.specie}
+                                                    className={!material.specie ? 'ion-invalid' : ''}
+                                                    onIonChange={(ev) => changeMaterial('specie', ev.target.value)}
+                                                    data-cy="material-specie-select"
+                                                    interfaceOptions={{ cssClass: 'cy-material-specie-alert' }}
+                                                >
+                                                    {MaterialMappings.getWoodSpeciesOptions().map((type) => (
+                                                        <IonSelectOption key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</IonSelectOption>
+                                                    ))}
+                                                </IonSelect>
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.specie}:</b> {MaterialMappings.getWoodSpeciesLabel(material.specie)}</div>
+                                            )}
+                                        </div>
+                                        {/* cod_unic_aviz */}
+                                        <div className="md:col-span-2">
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.cod_unic_aviz}</label>
+                                            {isNew ? (
+                                                <IonInput data-cy="input-cod_unic_aviz" onIonInput={(ev) => changeMaterial('cod_unic_aviz', ev.target.value)} label={labels.cod_unic_aviz} value={material.cod_unic_aviz} type="text" labelPlacement="floating" className="w-full" />
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.cod_unic_aviz}:</b> {material.cod_unic_aviz}</div>
+                                            )}
+                                        </div>
+                                        {/* data */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.data}</label>
+                                            <IonInput data-cy="input-data" onIonInput={(ev) => changeMaterial('data', ev.target.value)} label={labels.data} value={material.data} type="date" labelPlacement="floating" className="w-full" />
+                                        </div>
+                                        {/* apv */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.apv}</label>
+                                            {isNew ? (
+                                                <IonInput data-cy="input-apv" onIonInput={(ev) => changeMaterial('apv', ev.target.value)} label={labels.apv} value={material.apv} type="text" labelPlacement="floating" className="w-full" />
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.apv}:</b> {material.apv}</div>
+                                            )}
+                                        </div>
+                                        {/* nr_placuta_rosie */}
+                                        {isFieldVisible('nr_placuta_rosie') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.nr_placuta_rosie}</label>
+                                                <IonInput data-cy="input-nr_placuta_rosie" onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" className="w-full" />
+                                            </div>
+                                        )}
+                                        {/* lat */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.lat}</label>
+                                            {isNew ? (
+                                                <IonInput data-cy="input-lat" onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" className="w-full" />
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.lat}:</b> {material.lat}</div>
+                                            )} <span className="ml-1">°</span>
+                                        </div>
+                                        {/* log */}
+                                        <div>
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.log}</label>
+                                            {isNew ? (
+                                                <IonInput data-cy="input-log" onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" className="w-full" />
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.log}:</b> {material.log}</div>
+                                            )} <span className="ml-1">°</span>
+                                        </div>
+                                        {/* lungime */}
+                                        {isFieldVisible('lungime') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.lungime}</label>
+                                                <IonInput data-cy="input-lungime" onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">cm</span>
+                                            </div>
+                                        )}
+                                        {/* diametru */}
+                                        {isFieldVisible('diametru') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.diametru}</label>
+                                                <IonInput data-cy="input-diametru" onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">cm</span>
+                                            </div>
+                                        )}
+                                        {/* volum_placuta_rosie */}
+                                        {isFieldVisible('volum_placuta_rosie') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_placuta_rosie}</label>
+                                                <IonInput data-cy="input-volum_placuta_rosie" onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
+                                            </div>
+                                        )}
+                                        {/* volum_total */}
+                                        {isFieldVisible('volum_total') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_total}</label>
+                                                <IonInput data-cy="input-volum_total" onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
+                                            </div>
+                                        )}
+                                        {/* nr_bucati */}
+                                        {isFieldVisible('nr_bucati') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.nr_bucati}</label>
+                                                <IonInput data-cy="input-nr_bucati" onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" className="w-full" />
+                                            </div>
+                                        )}
+                                        {/* volum_net_paletizat */}
+                                        {isFieldVisible('volum_net_paletizat') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_net_paletizat}</label>
+                                                <IonInput data-cy="input-volum_net_paletizat" onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
+                                            </div>
+                                        )}
+                                        {/* volum_brut_paletizat */}
+                                        {isFieldVisible('volum_brut_paletizat') && (
+                                            <div>
+                                                <label className="block font-semibold mb-1 text-gray-700">{labels.volum_brut_paletizat}</label>
+                                                <IonInput data-cy="input-volum_brut_paletizat" onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" className="w-full" /> <span className="ml-1">m³</span>
+                                            </div>
+                                        )}
+                                        {/* observatii */}
+                                        <div className="md:col-span-2">
+                                            <label className="block font-semibold mb-1 text-gray-700">{labels.observatii}</label>
+                                            {isNew ? (
+                                                <IonTextarea data-cy="input-observatii" onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" className="w-full" />
+                                            ) : (
+                                                <div className="py-2 px-3 bg-gray-50 rounded border border-gray-200"><b>{labels.observatii}:</b> {material.observatii}</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
                             </div>
                         </IonCol>
 
