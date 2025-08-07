@@ -58,6 +58,48 @@ A mobile-first web application for managing woodworking materials, designed for 
 - Hierarchical view of material components
 - Recursive component tree display
 
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- Git
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd materialmanager
+   ```
+
+2. **Environment Configuration**
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your secure credentials
+   # IMPORTANT: Generate secure random passwords for production use
+   ```
+
+3. **Start the application**
+   ```bash
+   docker-compose up --build
+   ```
+
+### Access Points
+
+- **Frontend UI**: http://localhost:3001
+- **Backend API**: http://localhost:3000
+- **API Documentation**: http://localhost:3000/api-docs (Swagger UI)
+- **MongoDB Express**: http://localhost:8081 (Database admin interface)
+
+### Security Notes
+
+- **Never commit `.env` files** to version control
+- **Use strong, randomly generated passwords** for all credentials
+- **Change default passwords** before deploying to production
+- **Regularly rotate credentials** in production environments
+
 ## Technical Stack
 
 ### Frontend
@@ -67,18 +109,38 @@ A mobile-first web application for managing woodworking materials, designed for 
 - HTML5-QRCode for web-based scanning
 
 ### Backend
+- Node.js + Express
+- MongoDB with Mongoose ODM
+- Swagger/OpenAPI documentation
+- Jest testing framework
+
+### Development Commands
+
+### Backend Development
 ```sh
+cd backend
 node --watch server.js
 ```
 
-### UI Development
+### Frontend Development
 ```sh
+cd app
 npm run dev
 ```
 
 ### Database
 ```sh
 docker-compose up
+```
+
+### Testing
+```sh
+cd backend
+npm test
+```
+### Dev
+```sh
+docker-compose -f compose.dev.yaml up --build
 ```
 
 ## Mobile Support

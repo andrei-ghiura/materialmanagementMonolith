@@ -1,4 +1,4 @@
-import { Material } from '../src/types';
+import { Material } from '../types';
 import apiClient from './apiClient';
 
 export interface Processing {

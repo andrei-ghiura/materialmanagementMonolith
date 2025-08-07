@@ -2,9 +2,67 @@
     "openapi": "3.0.0",
     "info": {
         "title": "Material Manager API",
-        "version": "1.0.0"
+        "description": "API for managing wood materials and processing operations",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Material Manager Team"
+        }
     },
+    "servers": [
+        {
+            "url": "http://localhost/api",
+            "description": "Development server via nginx proxy"
+        },
+        {
+            "url": "http://localhost:3000",
+            "description": "Development server direct"
+        }
+    ],
     "paths": {
+        "/": {
+            "get": {
+                "summary": "Root endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Welcome message",
+                        "content": {
+                            "text/html": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "summary": "Health check endpoint",
+                "responses": {
+                    "200": {
+                        "description": "Service health status",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "OK"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/materials": {
             "get": {
                 "summary": "Get all materials",
@@ -138,6 +196,175 @@
                     }
                 }
             }
+        },
+        "/materials/process": {
+            "post": {
+                "summary": "Process materials",
+                "description": "Transform source materials into new materials through processing",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "sourceIds": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "Array of source material IDs"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "description": "Type of output material"
+                                    },
+                                    "specie": {
+                                        "type": "string",
+                                        "description": "Wood species"
+                                    },
+                                    "count": {
+                                        "type": "integer",
+                                        "description": "Number of output materials to create"
+                                    },
+                                    "processingTypeId": {
+                                        "type": "string",
+                                        "description": "ID of the processing type"
+                                    }
+                                },
+                                "required": [
+                                    "sourceIds",
+                                    "type",
+                                    "specie",
+                                    "count",
+                                    "processingTypeId"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Processing completed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "materials": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Material"
+                                            }
+                                        },
+                                        "processing": {
+                                            "$ref": "#/components/schemas/Processing"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data"
+                    },
+                    "500": {
+                        "description": "Processing failed"
+                    }
+                }
+            }
+        },
+        "/api/processings": {
+            "get": {
+                "summary": "Get processing history",
+                "description": "Retrieve all processing operations with materials",
+                "responses": {
+                    "200": {
+                        "description": "List of processing operations",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Processing"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/processings": {
+            "get": {
+                "summary": "Get all processings (alternative endpoint)",
+                "responses": {
+                    "200": {
+                        "description": "List of processing operations",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Processing"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/processing-types": {
+            "get": {
+                "summary": "Get all processing types",
+                "responses": {
+                    "200": {
+                        "description": "List of available processing types",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ProcessingType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/processing-types/{materialType}": {
+            "get": {
+                "summary": "Get processing types for specific material type",
+                "parameters": [
+                    {
+                        "name": "materialType",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Material type to filter processing types"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of processing types for the material type",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ProcessingType"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -210,6 +437,113 @@
                 "required": [
                     "type",
                     "specie"
+                ]
+            },
+            "Processing": {
+                "type": "object",
+                "properties": {
+                    "_id": {
+                        "type": "string",
+                        "description": "Processing operation ID"
+                    },
+                    "sourceIds": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Material"
+                        },
+                        "description": "Source materials used in processing"
+                    },
+                    "outputIds": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Material"
+                        },
+                        "description": "Output materials created from processing"
+                    },
+                    "outputType": {
+                        "type": "string",
+                        "description": "Type of output material"
+                    },
+                    "outputSpecie": {
+                        "type": "string",
+                        "description": "Wood species of output material"
+                    },
+                    "processingTypeId": {
+                        "type": "string",
+                        "description": "ID of the processing type used"
+                    },
+                    "processingDate": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Date and time when processing occurred"
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "Additional notes about the processing"
+                    }
+                },
+                "required": [
+                    "sourceIds",
+                    "outputIds",
+                    "outputType",
+                    "outputSpecie",
+                    "processingTypeId",
+                    "processingDate"
+                ]
+            },
+            "ProcessingType": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the processing type"
+                    },
+                    "label": {
+                        "type": "string",
+                        "description": "Human-readable label for the processing type"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Detailed description of the processing operation"
+                    },
+                    "sourceTypes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "description": "Array of material types that can be used as input"
+                    },
+                    "resultType": {
+                        "type": "string",
+                        "description": "Material type that will be produced as output"
+                    },
+                    "carryOverFields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "sourceField": {
+                                    "type": "string"
+                                },
+                                "resultField": {
+                                    "type": "string"
+                                },
+                                "carryOverStrategy": {
+                                    "type": "string"
+                                },
+                                "isRequired": {
+                                    "type": "boolean"
+                                }
+                            }
+                        },
+                        "description": "Configuration for how fields are carried over from source to result materials"
+                    }
+                },
+                "required": [
+                    "id",
+                    "label",
+                    "sourceTypes",
+                    "resultType"
                 ]
             }
         }

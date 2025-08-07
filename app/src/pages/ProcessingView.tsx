@@ -5,11 +5,11 @@ import { useIonRouter, useIonViewWillEnter } from '@ionic/react';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Material } from '../types';
-import { getAll, getById } from '../../api/materials';
-import { processMaterials as processAPI } from '../../api/materials';
+import { getAll, getById } from '../api/materials';
+import { processMaterials as processAPI } from '../api/materials';
 import { MaterialMappings } from '../config/materialMappings';
 import MaterialItem from '../components/MaterialItem';
-import apiClient from '../../api/apiClient';
+import apiClient from '../api/apiClient';
 
 // Processing type interface (matches backend)
 interface ProcessingType {
@@ -450,7 +450,7 @@ const ProcessingView: React.FC = () => {
                 <IonItemDivider>Pasul 1: Selectează Tipul de Procesare</IonItemDivider>
 
                 <IonItem>
-                    <IonLabel position="stacked">Tip procesare</IonLabel>
+                    <IonLabel position="floating">Tip procesare</IonLabel>
                     <IonSelect
                         value={outputConfig.processingType}
                         placeholder="Selectează tipul de procesare"

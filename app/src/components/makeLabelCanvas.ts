@@ -1,6 +1,6 @@
 import QRious from "qrious";
 import { Material } from "../types";
-import { getAll } from "../../api/materials";
+import { getAll } from "../api/materials";
 
 export async function makeLabelCanvas(material: Material): Promise<HTMLCanvasElement | null> {
     const parsedData = material

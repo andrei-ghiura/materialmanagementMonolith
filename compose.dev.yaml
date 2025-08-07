@@ -5,8 +5,6 @@ services:
       context: ./app
       dockerfile: Dockerfile
       target: build
-    ports:
-      - "5173:5173"
     depends_on:
       - backend-dev
     environment:
@@ -15,25 +13,38 @@ services:
       - ./app:/app
       - /app/node_modules
     command: npm run dev
-
+    ports:
+      - "5173:5173"
   # Backend Express server (development)
   backend-dev:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+      args:
+        - NODE_ENV=development
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     environment:
       - NODE_ENV=development
-      - MONGODB_URL=mongodb://mongo:27017/materialmanager
-      - MONGODB_USER=root
-      - MONGODB_PASSWORD=example
+      - MONGODB_URL=${MONGODB_URL}
+      - MONGODB_USER=${MONGODB_USER}
+      - MONGODB_PASSWORD=${MONGODB_PASSWORD}
     volumes:
       - ./backend:/app
-      - /app/node_modules
-    command: npm run dev
+    command: npm run dev:watch
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # MongoDB database
   mongo:
@@ -42,26 +53,47 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-      MONGO_INITDB_DATABASE: root-db
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
     volumes:
       - ./db/docker-entrypoint-initdb.d/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
   # MongoDB admin interface
   mongo-express:
     image: mongo-express
     restart: always
-    ports:
-      - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: example
-      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongo:27017/
-      ME_CONFIG_BASICAUTH: false
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USERNAME}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD}
+      ME_CONFIG_BASICAUTH: true
     depends_on:
       - mongo
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      app-dev:
+        condition: service_started
+      backend-dev:
+        condition: service_healthy
+      mongo-express:
+        condition: service_started
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
 
 volumes:
   mongo_data:

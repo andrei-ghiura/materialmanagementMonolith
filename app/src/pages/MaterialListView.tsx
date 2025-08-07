@@ -3,7 +3,7 @@ import labels from '../labels';
 import { add, qrCode, cogOutline, close } from 'ionicons/icons';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { useRef, useState } from 'react';
-import { deleteMaterial, getAll, getById } from '../../api/materials';
+import { deleteMaterial, getAll, getById } from '../api/materials';
 import { useIonRouter, useIonViewWillEnter } from '@ionic/react';
 import { Material } from '../types';
 import { Html5Qrcode } from 'html5-qrcode';

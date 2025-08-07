@@ -2,7 +2,7 @@ import { IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, Ion
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Prompt } from 'react-router-dom';
-import { deleteMaterial, save, update } from "../../api/materials";
+import { deleteMaterial, save, update } from "../api/materials";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Capacitor } from '@capacitor/core';
 import { useHistory, useParams } from 'react-router-dom';
@@ -26,7 +26,7 @@ const MaterialView = () => {
 
     const ensureMaterialArray = useCallback(async (components: (string | Material)[] = []): Promise<Material[]> => {
         const result: Material[] = [];
-        const { getById } = await import('../../api/materials');
+        const { getById } = await import('../api/materials');
 
         for (const comp of components) {
             if (isMaterial(comp)) {
@@ -88,7 +88,7 @@ const MaterialView = () => {
         async function fetchData() {
             if (id) {
                 try {
-                    const { getById } = await import('../../api/materials');
+                    const { getById } = await import('../api/materials');
                     const data = await getById(id);
                     setMaterial(data);
                     setComponente(data.componente || []);
@@ -179,7 +179,7 @@ const MaterialView = () => {
             const rawData = barcodes[0]?.displayValue || '';
             const scannedData = JSON.parse(rawData);
             if (scannedData.id) {
-                const { getById } = await import('../../api/materials');
+                const { getById } = await import('../api/materials');
                 try {
                     const componentData = await getById(scannedData.id);
                     const newComponents = [...componente, componentData];
@@ -472,13 +472,13 @@ const MaterialView = () => {
                                     {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_placuta_rosie', ev.target.value)} label={labels.nr_placuta_rosie} value={material.nr_placuta_rosie} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
                                     <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lat', ev.target.value)} label={labels.lat} value={material.lat} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
                                     <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('log', ev.target.value)} label={labels.log} value={material.log} type="text" labelPlacement="floating" /> °</IonItem></IonCol>
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
-                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('lungime', ev.target.value)} label={labels.lungime} value={material.lungime} type="number" labelPlacement="floating" />cm </IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('diametru', ev.target.value)} label={labels.diametru} value={material.diametru} type="number" labelPlacement="floating" /> cm</IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_placuta_rosie', ev.target.value)} label={labels.volum_placuta_rosie} value={material.volum_placuta_rosie} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_total', ev.target.value)} label={labels.volum_total} value={material.volum_total} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('nr_bucati', ev.target.value)} label={labels.nr_bucati} value={material.nr_bucati} type="number" labelPlacement="floating" /> </IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_net_paletizat', ev.target.value)} label={labels.volum_net_paletizat} value={material.volum_net_paletizat} type="number" labelPlacement="floating" /> m³</IonItem></IonCol>}
+                                    {!isRaw(material) && <IonCol size="6" sizeSm="4" ><IonItem> <IonInput onIonInput={(ev) => changeMaterial('volum_brut_paletizat', ev.target.value)} label={labels.volum_brut_paletizat} value={material.volum_brut_paletizat} type="number" labelPlacement="floating" />m³ </IonItem></IonCol>}
                                     <IonCol size="12"><IonItem> <IonTextarea onIonInput={(ev) => changeMaterial('observatii', ev.target.value)} label={labels.observatii} value={material.observatii} labelPlacement="floating" /> </IonItem></IonCol>
                                 </IonRow>
 

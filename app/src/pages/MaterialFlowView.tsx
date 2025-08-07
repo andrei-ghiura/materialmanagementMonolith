@@ -12,9 +12,10 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useMemo } from 'react';
-import { getAll } from '../../api/materials';
+import { getAll } from '../api/materials';
+
 import { Material } from '../types';
-import { getProcessingHistory, Processing } from '../../api/processings';
+import { getProcessingHistory, Processing } from '../api/processings';
 import { MaterialMappings } from '../config/materialMappings';
 import { useIonViewWillEnter, useIonRouter } from '@ionic/react';
 

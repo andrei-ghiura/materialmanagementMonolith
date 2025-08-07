@@ -16,7 +16,7 @@
 
 
 import apiClient from './apiClient';
-import { Material } from '../src/types';
+import { Material } from '../types';
 
 // Create a new material
 const save = async (materialData: Material) => {

@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { ProcessingType } from '../src/config/processingTypes';
+import { ProcessingType } from '../config/processingTypes';
 
 // Get all processing types
 export const getAllProcessingTypes = async (): Promise<ProcessingType[]> => {

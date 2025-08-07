@@ -1,7 +1,7 @@
 import { IonHeader, IonToolbar, IonButtons, IonButton, IonTitle, IonContent, IonItem, IonLabel, IonPage, IonList, useIonViewWillEnter } from "@ionic/react";
 import { useParams, useHistory } from "react-router-dom";
 import { useState } from "react";
-import { getAll } from "../../api/materials";
+import { getAll } from "../api/materials";
 import labels from "../labels";
 import { Material } from "../types";
 import jsPDF from "jspdf";

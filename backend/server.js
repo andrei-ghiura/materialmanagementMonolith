@@ -33,9 +33,8 @@ async function connectToDatabase() {
   }
 }
 
-function startServer() {
+function createApp() {
   const app = express();
-  const port = process.env.PORT || 3000;
   app.use(cors());
 
   app.use(express.json());
@@ -43,6 +42,13 @@ function startServer() {
   // Swagger UI
   const swaggerUi = require("swagger-ui-express");
   const swaggerDocument = require("./swagger.json");
+
+  // Serve swagger document JSON
+  app.get("/api-docs.json", (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerDocument);
+  });
+
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
   // Mongoose models
@@ -426,14 +432,23 @@ function startServer() {
     res.send("Material Manager API is running.");
   });
 
+  return app;
+}
+
+function startServer() {
+  const app = createApp();
+  const port = process.env.PORT || 3000;
+
   app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
   });
+
+  return app;
 }
 
 async function main() {
   await connectToDatabase();
-  startServer();
+  return startServer();
 }
 
 if (require.main === module) {
@@ -441,4 +456,7 @@ if (require.main === module) {
     console.error("Main function error:", err);
     process.exit(1);
   });
+} else {
+  // Export for testing - create app without starting server
+  module.exports = createApp();
 }
