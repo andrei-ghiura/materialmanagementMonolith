@@ -4,7 +4,6 @@ import { Container } from 'react-bootstrap';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import MaterialListView from './pages/MaterialListView';
 import MaterialView from './pages/MaterialView';
-import MaterialComponents from './pages/MaterialComponents';
 import ProcessingView from './pages/ProcessingView';
 import MaterialFlowView from './pages/MaterialFlowView';
 import SettingsPage from './pages/SettingsPage';
@@ -30,7 +29,6 @@ const App: React.FC = () => {
             <Route path="/" element={<MaterialListView />} />
             <Route path="/material/:id" element={<MaterialView />} />
             <Route path="/material" element={<MaterialView />} />
-            <Route path="/material/:id/components" element={<MaterialComponents />} />
             <Route path="/processing" element={<ProcessingView />} />
             <Route path="/flow/:id" element={<MaterialFlowView />} />
             <Route path="/settings" element={<SettingsPage />} />

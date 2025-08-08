@@ -1,0 +1,89 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: |
+            app/package-lock.json
+            backend/package-lock.json
+
+      # Test Backend
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+      # Test Frontend
+      - name: Install frontend dependencies
+        run: |
+          cd app
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd app
+          npm run build
+
+      - name: Run frontend linting
+        run: |
+          cd app
+          npm run lint
+
+  deploy:
+    needs: test
+    runs-on: self-hosted # Use your self-hosted runner
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate secure credentials
+        run: |
+          chmod +x ./generate-credentials.sh
+          ./generate-credentials.sh
+
+      - name: Stop existing containers
+        run: |
+          docker compose down || true
+
+      - name: Build and start services with nginx
+        run: |
+          docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+
+      - name: Wait for services to be ready
+        run: |
+          sleep 45
+          # Check health via nginx proxy
+          curl -f http://localhost/api/health || exit 1
+
+      - name: Verify all services
+        run: |
+          echo "Checking service status..."
+          docker compose ps
+          echo "Frontend accessible via: http://localhost/"
+          echo "Backend API accessible via: http://localhost/api/"
+          echo "MongoDB Express accessible via: http://localhost/dbadmin/"
+
+      - name: Clean up old images
+        run: |
+          docker image prune -f

@@ -1,0 +1,94 @@
+name: CI/CD Pipeline (SSH Deployment)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: |
+            app/package-lock.json
+            backend/package-lock.json
+
+      # Test Backend
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+      # Test Frontend
+      - name: Install frontend dependencies
+        run: |
+          cd app
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd app
+          npm run build
+
+      - name: Run frontend linting
+        run: |
+          cd app
+          npm run lint
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.USERNAME }}@${{ secrets.HOST }} << 'ENDSSH'
+            cd /path/to/your/app/directory
+            git pull origin main
+            
+            # Generate secure credentials using existing script
+            chmod +x ./generate-credentials.sh
+            ./generate-credentials.sh
+            
+            # Stop existing containers
+            docker compose down || true
+            
+            # Build and start services with nginx proxy
+            docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+            
+            # Wait for services and health check via nginx
+            sleep 45
+            curl -f http://localhost/api/health || exit 1
+            
+            # Verify deployment
+            docker compose ps
+            
+            # Clean up old images
+            docker image prune -f
+          ENDSSH

@@ -1,6 +1,5 @@
 import React from 'react';
-import { IonModal, IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonContent, IonList, IonItem, IonLabel, IonIcon } from '@ionic/react';
-import { close, add } from 'ionicons/icons';
+import { Modal, Button, ListGroup, ListGroupItem } from 'react-bootstrap';
 import { Material } from '../../types';
 import MaterialItem from '../MaterialItem';
 
@@ -24,49 +23,42 @@ const MaterialSelectionModal: React.FC<MaterialSelectionModalProps> = ({
     };
 
     return (
-        <IonModal isOpen={isOpen} onDidDismiss={onClose}>
-            <IonHeader>
-                <IonToolbar>
-                    <IonTitle>{title}</IonTitle>
-                    <IonButtons slot="end">
-                        <IonButton onClick={onClose}>
-                            <IonIcon icon={close}></IonIcon>
-                        </IonButton>
-                    </IonButtons>
-                </IonToolbar>
-            </IonHeader>
-            <IonContent className="ion-padding">
-                <IonList>
+        <Modal show={isOpen} onHide={onClose} centered>
+            <Modal.Header closeButton>
+                <Modal.Title>{title}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <ListGroup>
                     {materials.map((material) => (
-                        <IonItem
+                        <ListGroupItem
                             key={material._id || material.id}
-                            button
+                            action
                             onClick={() => handleMaterialSelect(material)}
+                            className="d-flex flex-column"
                         >
-                            <div className="w-full">
+                            <div className="w-100">
                                 <MaterialItem
                                     material={material}
                                     detailButton={false}
                                     extraContent={
-                                        <div className="flex justify-end">
-                                            <IonButton size="small" color="primary">
-                                                <IonIcon icon={add} />
+                                        <div className="d-flex justify-content-end">
+                                            <Button size="sm" variant="primary">
                                                 Adaugă
-                                            </IonButton>
+                                            </Button>
                                         </div>
                                     }
                                 />
                             </div>
-                        </IonItem>
+                        </ListGroupItem>
                     ))}
                     {materials.length === 0 && (
-                        <IonItem>
-                            <IonLabel>Nu există materiale disponibile</IonLabel>
-                        </IonItem>
+                        <ListGroupItem>
+                            Nu există materiale disponibile
+                        </ListGroupItem>
                     )}
-                </IonList>
-            </IonContent>
-        </IonModal>
+                </ListGroup>
+            </Modal.Body>
+        </Modal>
     );
 };
 

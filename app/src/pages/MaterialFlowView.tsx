@@ -19,6 +19,7 @@ import { getProcessingHistory, Processing } from '../api/processings';
 import { MaterialMappings } from '../config/materialMappings';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Html5Qrcode } from 'html5-qrcode';
 
 
 const MaterialFlowView: React.FC = () => {
@@ -297,8 +298,8 @@ const MaterialFlowView: React.FC = () => {
     // QR code scan logic
     useEffect(() => {
         if (showQrModal && webQrRef.current) {
-            if (!html5QrInstance.current && window.Html5Qrcode) {
-                html5QrInstance.current = new window.Html5Qrcode(webQrRef.current.id);
+            if (!html5QrInstance.current) {
+                html5QrInstance.current = new Html5Qrcode(webQrRef.current.id);
             }
             if (html5QrInstance.current) {
                 html5QrInstance.current

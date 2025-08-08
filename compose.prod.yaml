@@ -1,0 +1,33 @@
+services:
+  app:
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    
+  backend:
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    
+  mongo:
+    restart: unless-stopped
+    
+  mongo-express:
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_started
+      backend:
+        condition: service_started
+      mongo-express:
+        condition: service_started
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro

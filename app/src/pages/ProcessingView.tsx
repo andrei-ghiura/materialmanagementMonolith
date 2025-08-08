@@ -198,10 +198,10 @@ const ProcessingView: React.FC = () => {
             setFilteredMaterials(materials);
         } catch (error) {
             console.error('Failed to load materials:', error);
-            presentAlert({
+            setAlert({
                 header: 'Eroare',
                 message: 'Nu s-au putut încărca materialele.',
-                buttons: ['OK'],
+                variant: 'danger',
             });
         }
     };
