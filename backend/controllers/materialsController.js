@@ -3,8 +3,19 @@ const { getNextHumanId } = require("../helpers/humanId");
 
 exports.getAllMaterials = async (req, res) => {
   try {
-    const materials = await Material.find({ deleted: false });
-    res.json(materials);
+    // Build filter from query params
+    const filter = { deleted: false };
+    if (req.query.type) filter.type = req.query.type;
+    if (req.query.specie) filter.specie = req.query.specie;
+    if (req.query.state) filter.state = req.query.state;
+
+    const materials = await Material.find(filter);
+    // Ensure state is always present in response
+    const materialsWithState = materials.map((mat) => ({
+      ...mat.toObject(),
+      state: mat.state || "received",
+    }));
+    res.json(materialsWithState);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

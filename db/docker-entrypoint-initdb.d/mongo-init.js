@@ -26,8 +26,8 @@ if (!db.getCollectionNames().includes("processings")) {
   db.processings.createIndex({ outputIds: 1 });
 }
 // Use environment variables for app user and password (set in docker-compose)
-var appUser = process.env["MONGO_APP_USER"];
-var appPassword = process.env["MONGO_APP_PASSWORD"];
+var appUser = process.env["MONGODB_USER"];
+var appPassword = process.env["MONGODB_PASSWORD"];
 
 if (!db.getUser(appUser)) {
   db.createUser({

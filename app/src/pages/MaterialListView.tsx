@@ -15,7 +15,18 @@ import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Modal from 'react-bootstrap/Modal';
 import Card from 'react-bootstrap/Card';
+import MaterialTable from '../components/MaterialTable';
 
+// Simple hook to detect desktop vs mobile/tablet
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992);
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 992);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isDesktop;
+}
 const isWeb = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return !(window as any).Capacitor?.isNativePlatform?.();
@@ -24,6 +35,9 @@ const isWeb = () => {
 const MaterialListView: React.FC = () => {
   const navigate = useNavigate();
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [filters, setFilters] = useState<{ key: keyof Material | '', value: string }[]>([]);
+  const [filterOptions, setFilterOptions] = useState<{ [key: string]: string[] }>({});
+  const [showAddFilter, setShowAddFilter] = useState(false);
   const [showWebQrModal, setShowWebQrModal] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertContent, setAlertContent] = useState<{ header: string, message: string } | null>(null);
@@ -83,7 +97,22 @@ const MaterialListView: React.FC = () => {
 
 
   const loadData = async () => {
-    getAll().then((data) => setMaterials(data)).catch((error) => console.log(error));
+    getAll().then((data) => {
+      setMaterials(data);
+      // Build filter options for autocomplete
+      const options: { [key: string]: Set<string> } = {};
+      data.forEach((mat: Material) => {
+        Object.keys(mat).forEach((key) => {
+          if (!options[key]) options[key] = new Set();
+          if (mat[key as keyof Material] != null) {
+            options[key].add(String(mat[key as keyof Material]));
+          }
+        });
+      });
+      const opts: { [key: string]: string[] } = {};
+      Object.keys(options).forEach((k) => opts[k] = Array.from(options[k]));
+      setFilterOptions(opts);
+    }).catch((error) => console.log(error));
   };
 
   useEffect(() => {
@@ -152,27 +181,96 @@ const MaterialListView: React.FC = () => {
   }, [navigate, scan, setFooterActions]);
 
 
+  const isDesktop = useIsDesktop();
+
+  // Filtered materials
+  const filteredMaterials = useMemo(() => {
+    if (filters.length === 0) return materials;
+    return materials.filter((mat) => {
+      return filters.every((f) => {
+        if (!f.key) return true;
+        const val = mat[f.key];
+        return val != null && String(val).toLowerCase().includes(f.value.toLowerCase());
+      });
+    });
+  }, [materials, filters]);
+
+  // Add filter field
+  const handleAddFilter = () => {
+    setFilters([...filters, { key: '', value: '' }]);
+  };
+
+  // Remove filter field
+  const handleRemoveFilter = (idx: number) => {
+    setFilters(filters.filter((_, i) => i !== idx));
+  };
+
+  // Update filter field
+  const handleFilterChange = (idx: number, key: keyof Material | '', value: string) => {
+    const newFilters = [...filters];
+    newFilters[idx] = { key, value };
+    setFilters(newFilters);
+  };
+
   return (
-    <Container
-      className="py-2 px-0 px-md-3"
-      style={{ minHeight: '100vh', height: '100vh', display: 'flex', flexDirection: 'column' }}
+    <div
+      className="w-screen min-h-screen h-screen flex flex-col"
+      style={{ margin: 0, padding: 0 }}
     >
-      {/* Main content: responsive flex for mobile/desktop */}
-      <Row className="g-0 flex-column flex-md-row flex-grow-1" style={{ flex: 1, minHeight: 0 }}>
-        <Col xs={12} md={8} className="mx-auto order-2 order-md-1 d-flex flex-column" style={{ height: '100%', minHeight: 0 }}>
-          <Card className="shadow-sm border-0 mb-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 300, height: '100%' }}>
-            <Card.Body
-              className="p-2 p-md-3 flex-grow-1 d-flex flex-column"
-            >
-              <ListGroup data-cy="material-list" variant="flush">
-                {materials.length === 0 && (
-                  <div className="text-center text-muted py-5">Niciun material găsit.</div>
-                )}
-                {materials.map((material) => (
+      {/* Filter Toolbar */}
+      <Card className="mb-2 shadow-sm border-0 w-full">
+        <Card.Body className="py-2 px-2 d-flex flex-wrap align-items-center gap-2">
+          {filters.map((filter, idx) => (
+            <div key={idx} className="d-flex align-items-center gap-2" style={{ minWidth: 220 }}>
+              <select
+                className="form-select"
+                style={{ minWidth: 100 }}
+                value={filter.key}
+                onChange={e => handleFilterChange(idx, e.target.value as keyof Material, filter.value)}
+              >
+                <option value="">Atribut</option>
+                {Object.keys(filterOptions).map((attr) => (
+                  <option key={attr} value={attr}>{labels[attr] || attr}</option>
+                ))}
+              </select>
+              <input
+                className="form-control"
+                style={{ minWidth: 100 }}
+                type="text"
+                value={filter.value}
+                onChange={e => handleFilterChange(idx, filter.key, e.target.value)}
+                list={`filter-autocomplete-${idx}`}
+                placeholder="Valoare..."
+                disabled={!filter.key}
+              />
+              <datalist id={`filter-autocomplete-${idx}`}>
+                {(filter.key && filterOptions[filter.key]) ? filterOptions[filter.key].map((opt) => (
+                  <option key={opt} value={opt} />
+                )) : null}
+              </datalist>
+              <Button variant="outline-danger" size="sm" onClick={() => handleRemoveFilter(idx)} aria-label="Remove filter">✕</Button>
+            </div>
+          ))}
+          <Button variant="outline-primary" size="sm" onClick={handleAddFilter} aria-label="Add filter">+ Filtru</Button>
+        </Card.Body>
+      </Card>
+      <div className="order-2 order-md-1 d-flex flex-col w-full" style={{ height: '100%', minHeight: 0, width: '100%' }}>
+        <Card className="shadow-sm border-0 mb-3 flex-grow-1 d-flex flex-column w-full" style={{ minHeight: 300, height: '100%', width: '100%' }}>
+          <Card.Body className="p-2 p-md-3 flex-grow-1 d-flex flex-column">
+            {filteredMaterials.length === 0 ? (
+              <div className="text-center text-muted py-5">Niciun material găsit.</div>
+            ) : isDesktop ? (
+              <MaterialTable
+                materials={filteredMaterials}
+                onRowClick={(id) => navigate(`/material/${id}`)}
+              />
+            ) : (
+              <ListGroup data-cy="material-list" variant="flush" style={{ width: '100%' }}>
+                {filteredMaterials.map((material) => (
                   <ListGroup.Item
                     key={material.id || material._id}
                     className="d-flex align-items-center px-2 px-md-3 py-2 border-0 border-bottom"
-                    style={{ background: 'transparent', borderRadius: 12 }}
+                    style={{ background: 'transparent', borderRadius: 12, width: '100%' }}
                   >
                     <div
                       style={{ flex: 1, cursor: 'pointer', minWidth: 0 }}
@@ -184,10 +282,10 @@ const MaterialListView: React.FC = () => {
                   </ListGroup.Item>
                 ))}
               </ListGroup>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+            )}
+          </Card.Body>
+        </Card>
+      </div>
 
       {/* Web QR Modal */}
       <Modal show={showWebQrModal} onHide={closeWebQrModal} centered>
@@ -211,7 +309,7 @@ const MaterialListView: React.FC = () => {
           <Button variant="primary" onClick={() => setShowAlert(false)}>OK</Button>
         </Modal.Footer>
       </Modal>
-    </Container>
+    </div>
   );
 }
 export default MaterialListView;

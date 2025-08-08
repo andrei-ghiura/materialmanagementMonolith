@@ -21,6 +21,11 @@ const materialSchema = new mongoose.Schema(
     observatii: { type: String, maxlength: 1024 },
     componente: [{ type: mongoose.Schema.Types.ObjectId, ref: "Material" }],
     deleted: { type: Boolean, default: false },
+    state: {
+      type: String,
+      enum: ["received", "processed", "shipped"],
+      default: "received",
+    },
   },
   {
     timestamps: true,

@@ -24,5 +24,5 @@ export interface Material {
     nume?: string;
     tip?: string;
     descriere?: string;
-    stare?: string;
+    state?: "received" | "processed" | "shipped";
 }

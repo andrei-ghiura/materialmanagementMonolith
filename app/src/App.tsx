@@ -24,7 +24,7 @@ const App: React.FC = () => {
   return (
     <Router>
       <Layout>
-        <Container className="mt-4">
+        <Container fluid className="mt-4">
           <Routes>
             <Route path="/" element={<MaterialListView />} />
             <Route path="/material/:id" element={<MaterialView />} />

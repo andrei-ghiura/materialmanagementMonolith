@@ -30,8 +30,16 @@ const save = async (materialData: Material) => {
 };
 
 // Get all materials
-const getAll = async () => {
-    const response = await apiClient.get('/materials');
+// Get all materials with optional filters
+interface MaterialFilters {
+    type?: string;
+    specie?: string;
+    state?: string;
+}
+
+const getAll = async (filters?: MaterialFilters) => {
+    const params = filters ? filters : {};
+    const response = await apiClient.get('/materials', { params });
     return response.data;
 };
 
