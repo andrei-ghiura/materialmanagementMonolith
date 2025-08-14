@@ -345,58 +345,116 @@ function getProcessingType(id) {
  * Apply processing rules to generate fields for a new material
  */
 function applyProcessingRules(processingTypeId, sourceMaterials) {
-  const processingType = getProcessingType(processingTypeId);
+  console.log(
+    "Debug: applyProcessingRules called with:",
+    processingTypeId,
+    sourceMaterials
+  );
+  const processingType = module.exports.getProcessingType(processingTypeId);
+  console.log("Debug: processingType found:", processingType);
   if (!processingType || !sourceMaterials || sourceMaterials.length === 0) {
+    console.log(
+      "Debug: Early return - missing processingType or sourceMaterials"
+    );
     return {};
   }
 
   // Start with an empty result
   const result = {};
 
+  // Debug logs for resultType
+  console.log("Debug: processingType.resultType:", processingType.resultType);
+  console.log("Debug: sourceMaterials[0]?.type:", sourceMaterials[0]?.type);
+  console.log(
+    "Debug: processingType.additionalFields:",
+    processingType.additionalFields
+  );
+  console.log("Debug: sourceMaterials[0]?.specie:", sourceMaterials[0]?.specie);
+
   // Set the type based on the processing type
-  result.type =
-    processingType.resultType === "same"
-      ? sourceMaterials[0].type
-      : processingType.resultType;
+  if (processingType.resultType === "same") {
+    if (!sourceMaterials[0]?.type) {
+      throw new Error(
+        "Source material type is undefined for 'same' resultType"
+      );
+    }
+    result.type = sourceMaterials[0].type;
+  } else {
+    result.type = processingType.resultType;
+  }
 
   // Apply each carry-over rule
-  processingType.carryOverFields.forEach((field) => {
-    if (field.carryOverStrategy === "first") {
-      // Take value from the first source material
-      const value = sourceMaterials[0][field.sourceField];
-      if (value !== undefined && value !== null) {
-        result[field.resultField] = value;
-      }
-    } else if (field.carryOverStrategy === "all") {
-      // Combine values from all source materials (e.g., for notes)
-      const values = sourceMaterials
-        .map((m) => m[field.sourceField])
-        .filter((v) => v !== undefined && v !== null);
-      if (values.length > 0) {
-        result[field.resultField] = values.join(", ");
-      }
-    } else if (field.carryOverStrategy === "sum") {
-      // Sum numeric values (e.g., for volumes)
-      const sum = sourceMaterials.reduce((total, m) => {
-        const val = m[field.sourceField];
-        return total + (val ? parseFloat(val) : 0);
-      }, 0);
-      result[field.resultField] = sum.toString();
-    } else if (field.carryOverStrategy === "average") {
-      // Average numeric values
-      const validValues = sourceMaterials
-        .map((m) => m[field.sourceField])
-        .filter((v) => v !== undefined && v !== null)
-        .map((v) => parseFloat(v));
+  console.log("Debug: carryOverFields:", processingType.carryOverFields);
+  if (processingType.carryOverFields) {
+    processingType.carryOverFields.forEach((field) => {
+      console.log("Debug: Processing field:", field);
+      if (field.carryOverStrategy === "first") {
+        // Take value from the first source material
+        const value = sourceMaterials[0]?.[field.sourceField];
+        if (value !== undefined && value !== null) {
+          result[field.resultField] = value;
+        }
+      } else if (field.carryOverStrategy === "all") {
+        // Combine values from all source materials (e.g., for notes)
+        if (!field.sourceField || !field.resultField) {
+          console.error("Invalid carryOverField configuration:", field);
+          // Skip this field but continue processing other fields
+        } else {
+          console.log("Debug: Validating carryOverField configuration:", field);
+          const rawValues = sourceMaterials.map((m) => m[field.sourceField]);
+          console.log("Debug: Raw Values Before Filtering:", rawValues);
+          const values = rawValues.filter((v) => v !== undefined && v !== null);
+          console.log("Debug: Filtered Values for 'all' strategy:", values);
+          if (values.length > 0) {
+            result[field.resultField] = values.join(", ");
+            console.log(
+              "Debug: Concatenated Result for 'all' strategy:",
+              result[field.resultField]
+            );
+          } else {
+            result[field.resultField] = ""; // Ensure field is set even if no values
+            console.log(
+              "Debug: No values found for 'all' strategy, setting empty string."
+            );
+          }
+        }
+      } else if (field.carryOverStrategy === "sum") {
+        // Sum numeric values (e.g., for volumes)
+        const sum = sourceMaterials.reduce((total, m) => {
+          const val = m[field.sourceField];
+          return total + (val ? parseFloat(val) : 0);
+        }, 0);
+        result[field.resultField] = sum.toString();
+      } else if (field.carryOverStrategy === "average") {
+        // Average numeric values
+        const validValues = sourceMaterials
+          .map((m) => m[field.sourceField])
+          .filter((v) => v !== undefined && v !== null)
+          .map((v) => parseFloat(v));
 
-      if (validValues.length > 0) {
-        const avg =
-          validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
-        result[field.resultField] = avg.toString();
+        if (validValues.length > 0) {
+          const avg =
+            validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+          result[field.resultField] = avg.toString();
+        }
       }
-    }
-    // For 'manual', we don't set anything automatically
-  });
+      // For 'manual', we don't set anything automatically
+    });
+  } // Close the if (processingType.carryOverFields) block
+
+  // Ensure additionalFields is defined before accessing specie
+  if (
+    processingType.additionalFields &&
+    processingType.additionalFields.specie
+  ) {
+    result.specie = processingType.additionalFields.specie;
+  } else if (sourceMaterials[0]?.specie) {
+    result.specie = sourceMaterials[0].specie;
+  } else {
+    result.specie = "unknown"; // Default value if no specie is found
+  }
+
+  console.log("Debug: Final result.specie:", result.specie);
 
   return result;
 }

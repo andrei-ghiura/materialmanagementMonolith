@@ -57,14 +57,14 @@ describe("Processing API", () => {
         .send(processingRequest)
         .expect(200);
 
-      expect(response.body).toHaveProperty("materials");
+      expect(response.body).toHaveProperty("outputMaterials");
       expect(response.body).toHaveProperty("processing");
-      expect(response.body.materials).toHaveLength(2);
-      expect(response.body.materials[0].type).toBe("BSTF");
+      expect(response.body.outputMaterials).toHaveLength(2);
+      expect(response.body.outputMaterials[0].type).toBe("BSTF");
       expect(response.body.processing.processingTypeId).toBe("fasonare");
 
       // Store for cleanup
-      processedMaterialIds = response.body.materials.map((m) => m._id);
+      processedMaterialIds = response.body.outputMaterials.map((m) => m._id);
       processingId = response.body.processing._id;
     });
 

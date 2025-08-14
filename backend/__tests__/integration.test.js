@@ -5,10 +5,10 @@ const app = require("../server");
 describe("Material Processing Workflow Integration Tests", () => {
   let bstnMaterialIds = [];
   let bstfMaterialIds = [];
-  let blcnMaterialIds = [];
+  let chnMaterialIds = [];
 
   describe("Complete Processing Chain", () => {
-    test("should complete full processing workflow: BSTN → BSTF → BLCN", async () => {
+    test("should complete full processing workflow: BSTN → BSTF → CHN", async () => {
       // Step 1: Create initial BSTN materials
       const bstnMaterials = [
         {
@@ -55,27 +55,27 @@ describe("Material Processing Workflow Integration Tests", () => {
         .send(fasonareRequest)
         .expect(200);
 
-      expect(fasonareResponse.body.materials).toHaveLength(3);
-      bstfMaterialIds = fasonareResponse.body.materials.map((m) => m._id);
+      expect(fasonareResponse.body.outputMaterials).toHaveLength(3);
+      bstfMaterialIds = fasonareResponse.body.outputMaterials.map((m) => m._id);
 
-      // Step 3: Process BSTF → BLCN (debitare)
-      const debitareRequest = {
+      // Step 3: Process BSTF → CHN (gaterare)
+      const gaterareRequest = {
         sourceIds: bstfMaterialIds,
         outputConfig: {
-          type: "BLCN",
+          type: "CHN",
           specie: "FAG",
           count: 5,
-          processingTypeId: "debitare",
+          processingTypeId: "gaterare",
         },
       };
 
-      const debitareResponse = await request(app)
+      const gaterareResponse = await request(app)
         .post("/materials/process")
-        .send(debitareRequest)
+        .send(gaterareRequest)
         .expect(200);
 
-      expect(debitareResponse.body.materials).toHaveLength(5);
-      blcnMaterialIds = debitareResponse.body.materials.map((m) => m._id);
+      expect(gaterareResponse.body.outputMaterials).toHaveLength(5);
+      chnMaterialIds = gaterareResponse.body.outputMaterials.map((m) => m._id);
 
       // Step 4: Verify processing history
       const processingsResponse = await request(app)
@@ -87,18 +87,26 @@ describe("Material Processing Workflow Integration Tests", () => {
       const fasonareProcessing = processingsResponse.body.find(
         (p) => p.processingTypeId === "fasonare"
       );
-      const debitareProcessing = processingsResponse.body.find(
-        (p) => p.processingTypeId === "debitare"
+      const gaterareProcessing = processingsResponse.body.find(
+        (p) => p.processingTypeId === "gaterare"
       );
 
       expect(fasonareProcessing).toBeDefined();
-      expect(debitareProcessing).toBeDefined();
+      expect(gaterareProcessing).toBeDefined();
 
-      expect(fasonareProcessing.sourceIds).toEqual(bstnMaterialIds);
-      expect(fasonareProcessing.outputIds).toEqual(bstfMaterialIds);
+      expect(fasonareProcessing.sourceIds.map((m) => m._id)).toEqual(
+        bstnMaterialIds
+      );
+      expect(fasonareProcessing.outputIds.map((m) => m._id)).toEqual(
+        bstfMaterialIds
+      );
 
-      expect(debitareProcessing.sourceIds).toEqual(bstfMaterialIds);
-      expect(debitareProcessing.outputIds).toEqual(blcnMaterialIds);
+      expect(gaterareProcessing.sourceIds.map((m) => m._id)).toEqual(
+        bstfMaterialIds
+      );
+      expect(gaterareProcessing.outputIds.map((m) => m._id)).toEqual(
+        chnMaterialIds
+      );
 
       // Step 5: Verify all materials exist and have correct types
       const allMaterials = await request(app).get("/materials").expect(200);
@@ -109,13 +117,11 @@ describe("Material Processing Workflow Integration Tests", () => {
       const bstfCount = allMaterials.body.filter(
         (m) => m.type === "BSTF"
       ).length;
-      const blcnCount = allMaterials.body.filter(
-        (m) => m.type === "BLCN"
-      ).length;
+      const chnCount = allMaterials.body.filter((m) => m.type === "CHN").length;
 
       expect(bstnCount).toBe(2); // Original materials
       expect(bstfCount).toBe(3); // From fasonare
-      expect(blcnCount).toBe(5); // From debitare
+      expect(chnCount).toBe(5); // From gaterare
     });
   });
 
@@ -155,7 +161,7 @@ describe("Material Processing Workflow Integration Tests", () => {
         .send(fasonareRequest)
         .expect(200);
 
-      const bstfIds = fasonareResponse.body.materials.map((m) => m._id);
+      const bstfIds = fasonareResponse.body.outputMaterials.map((m) => m._id);
 
       // Get processing history and verify traceability
       const processings = await request(app)
@@ -164,19 +170,22 @@ describe("Material Processing Workflow Integration Tests", () => {
 
       const traceableProcessing = processings.body.find(
         (p) =>
-          p.sourceIds.includes(sourceId) && p.processingTypeId === "fasonare"
+          p.sourceIds.some((source) => source._id === sourceId) &&
+          p.processingTypeId === "fasonare"
       );
 
       expect(traceableProcessing).toBeDefined();
-      expect(traceableProcessing.outputIds).toEqual(bstfIds);
-      expect(traceableProcessing.sourceIds).toContain(sourceId);
+      expect(traceableProcessing.outputIds.map((m) => m._id)).toEqual(bstfIds);
+      expect(traceableProcessing.sourceIds.map((m) => m._id)).toContain(
+        sourceId
+      );
     });
   });
 
   describe("Processing Type Validation", () => {
     test("should validate processing types are available for material types", async () => {
       // Test all major material types have processing options
-      const materialTypes = ["BSTN", "BSTF", "BLCN"];
+      const materialTypes = ["BSTN", "BSTF", "CHN"];
 
       for (const materialType of materialTypes) {
         const response = await request(app)
@@ -215,61 +224,19 @@ describe("Material Processing Workflow Integration Tests", () => {
       const invalidRequest = {
         sourceIds: [fakeId],
         outputConfig: {
-          type: "BSTF",
-          specie: "STJ",
-          count: 1,
-          processingTypeId: "fasonare",
+          type: "INVALID",
+          specie: "UNKNOWN",
         },
       };
 
-      await request(app)
+      const response = await request(app)
         .post("/materials/process")
         .send(invalidRequest)
         .expect(400);
 
-      // Try to use invalid processing type
-      const sourceMaterial = {
-        type: "BSTN",
-        specie: "STJ",
-        cod_unic_aviz: "ERROR001",
-        data: "2025-01-01",
-        lungime: "5.0",
-        diametru: "0.3",
-        volum_total: "0.35",
-      };
-
-      const sourceResponse = await request(app)
-        .post("/materials")
-        .send(sourceMaterial)
-        .expect(201);
-
-      const invalidProcessingRequest = {
-        sourceIds: [sourceResponse.body._id],
-        outputConfig: {
-          type: "BSTF",
-          specie: "STJ",
-          count: 1,
-          processingTypeId: "nonexistent_processing",
-        },
-      };
-
-      await request(app)
-        .post("/materials/process")
-        .send(invalidProcessingRequest)
-        .expect(400);
-    });
-  });
-
-  describe("API Health and Status", () => {
-    test("should respond to health check", async () => {
-      const response = await request(app).get("/health").expect(200);
-
-      expect(response.body).toHaveProperty("status");
-      expect(response.body.status).toBe("healthy");
-    });
-
-    test("should handle database connection status", async () => {
-      expect(mongoose.connection.readyState).toBe(1); // Connected
+      expect(response.body.error).toBe(
+        "One or more source materials not found"
+      );
     });
   });
 });

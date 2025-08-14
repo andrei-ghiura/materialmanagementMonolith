@@ -25,7 +25,7 @@ exports.processMaterials = async (req, res) => {
     const sourceMaterials = await Material.find({ _id: { $in: sourceIds } });
     if (sourceMaterials.length !== sourceIds.length) {
       return res
-        .status(404)
+        .status(400)
         .json({ error: "One or more source materials not found" });
     }
     let resultType = outputConfig.type;
@@ -34,24 +34,20 @@ exports.processMaterials = async (req, res) => {
     if (useProcessingTypes) {
       const processingType = getProcessingType(outputConfig.processingTypeId);
       if (!processingType) {
-        return res
-          .status(400)
-          .json({
-            error: `Unknown processing type: ${outputConfig.processingTypeId}`,
-          });
+        return res.status(400).json({
+          error: `Unknown processing type: ${outputConfig.processingTypeId}`,
+        });
       }
       if (processingType.sourceTypes && processingType.sourceTypes.length > 0) {
         const invalidMaterials = sourceMaterials.filter(
           (m) => !processingType.sourceTypes.includes(m.type)
         );
         if (invalidMaterials.length > 0) {
-          return res
-            .status(400)
-            .json({
-              error: `Invalid source material types for ${
-                processingType.label
-              } processing. Expected: ${processingType.sourceTypes.join(", ")}`,
-            });
+          return res.status(400).json({
+            error: `Invalid source material types for ${
+              processingType.label
+            } processing. Expected: ${processingType.sourceTypes.join(", ")}`,
+          });
         }
       }
       additionalFields = applyProcessingRules(
@@ -127,7 +123,7 @@ exports.processMaterials = async (req, res) => {
     }
     processingRecord.outputIds = outputMaterials.map((m) => m._id);
     await processingRecord.save();
-    res.status(201).json({
+    res.status(200).json({
       message: `Successfully processed ${sourceMaterials.length} materials into ${outputMaterials.length} new materials`,
       outputMaterials,
       updatedSourceMaterials,

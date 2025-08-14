@@ -1,25 +1,16 @@
 
 import React from 'react';
 import { useUiState } from '../components/ui/UiStateContext';
-import { useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Card, Button, ListGroup } from 'react-bootstrap';
 
 
 const SettingsPage: React.FC = () => {
-    const navigate = useNavigate();
 
-    const { theme, setTheme, toggleTheme } = useUiState();
+    const { theme, setTheme } = useUiState();
 
     return (
         <Container className="mt-4">
-            <Row className="align-items-center mb-3">
-                <Col xs="auto">
-                    <Button className="btn-transparent" onClick={() => navigate(-1)} style={{ fontSize: 20, textDecoration: 'none' }}>
-                        ←
-                    </Button>
-                </Col>
-                <Col><h2 className="mb-0">Setări</h2></Col>
-            </Row>
+
             <Row className="justify-content-center">
                 <Col xs={12} md={8} lg={6}>
                     <Card>

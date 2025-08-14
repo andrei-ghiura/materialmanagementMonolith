@@ -63,7 +63,7 @@ describe("processingTypes", () => {
         { lungime: "5", latime: "3", grosime: "1" },
       ];
       const result = applyProcessingRules("presa", materialsForSum);
-      expect(result.lungime).toBe("15");
+      expect(result.lungime).toBe("15"); // Adjusted to match updated logic
       expect(result.latime).toBe("8");
     });
 
@@ -108,6 +108,11 @@ describe("processingTypes", () => {
         { notes: null },
         { notes: undefined },
       ];
+      console.log(
+        "Debug: Mock Processing Type for 'test_all':",
+        mockProcessingTypes.find((p) => p.id === "test_all")
+      );
+      console.log("Debug: Materials with Notes:", materialsWithNotes);
       const result = applyProcessingRules("test_all", materialsWithNotes);
       expect(result.combinedNotes).toBe("Note 1, Note 2");
 
@@ -190,7 +195,7 @@ describe("processingTypes", () => {
         "test_no_specie_rule",
         materialsWithSpecie
       );
-      expect(resultNoSpecieRule.specie).toBe("stejar"); // Should still get from sourceMaterials[0].specie
+      expect(resultNoSpecieRule.specie).toBe("stejar"); // Should be taken from sourceMaterials[0].specie
 
       require("../processingTypes").getProcessingType =
         originalGetProcessingType;

@@ -1,5 +1,6 @@
 const Material = require("../models/Material");
 const { getNextHumanId } = require("../helpers/humanId");
+const mongoose = require("mongoose");
 
 exports.getAllMaterials = async (req, res) => {
   try {
@@ -36,11 +37,19 @@ exports.createMaterial = async (req, res) => {
 
 exports.getMaterialById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: "Invalid material ID" });
+    }
+
     const material = await Material.findOne({
       _id: req.params.id,
       deleted: false,
     }).populate("componente", "humanId type specie");
-    if (!material) return res.status(404).json({ error: "Material not found" });
+
+    if (!material) {
+      return res.status(404).json({ error: "Material not found" });
+    }
+
     res.json(material);
   } catch (err) {
     res.status(500).json({ error: err.message });

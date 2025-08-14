@@ -3,15 +3,12 @@ import { useUiState } from '../components/ui/UiStateContext';
 import { useNavigate } from 'react-router-dom';
 import labels from '../labels';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
-import { deleteMaterial, getAll, getById } from '../api/materials';
+import { getAll, getById } from '../api/materials';
 import { Material } from '../types';
 import { Html5Qrcode } from 'html5-qrcode';
 import MaterialItem from '../components/MaterialItem';
-import Container from 'react-bootstrap/Container';
-import { Camera, GearFill, Hammer, Plus, QrCodeScan } from 'react-bootstrap-icons';
+import { Hammer, Plus, QrCodeScan } from 'react-bootstrap-icons';
 
-import Row from 'react-bootstrap/Row';
-import Col from 'react-bootstrap/Col';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
 import Modal from 'react-bootstrap/Modal';
@@ -38,7 +35,6 @@ const MaterialListView: React.FC = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [filters, setFilters] = useState<{ key: keyof Material | '', value: string }[]>([]);
   const [filterOptions, setFilterOptions] = useState<{ [key: string]: string[] }>({});
-  const [showAddFilter, setShowAddFilter] = useState(false);
   const [showWebQrModal, setShowWebQrModal] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [alertContent, setAlertContent] = useState<{ header: string, message: string } | null>(null);
@@ -113,35 +109,111 @@ const MaterialListView: React.FC = () => {
       const opts: { [key: string]: string[] } = {};
       Object.keys(options).forEach((k) => opts[k] = Array.from(options[k]));
       setFilterOptions(opts);
-    }).catch((error) => console.log(error));
+    }).catch(() => {
+      // Handle load error silently
+    });
   };
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Initialize QR scanner when modal opens
+  useEffect(() => {
+    if (showWebQrModal && webQrRef.current) {
+      const startScanner = async () => {
+        try {
+          if (!html5QrInstance.current) {
+            html5QrInstance.current = new Html5Qrcode("web-qr-reader");
+          }
+
+          await html5QrInstance.current.start(
+            { facingMode: "environment" }, // Use back camera
+            {
+              fps: 10,
+              qrbox: { width: 250, height: 250 }
+            },
+            async (decodedText: string) => {
+              // Handle successful scan
+              let id: string | null = null;
+              const rawValue = decodedText.trim();
+
+              try {
+                const data = JSON.parse(rawValue);
+                if (data && data.id) {
+                  id = data.id;
+                }
+              } catch {
+                if (rawValue) {
+                  id = rawValue;
+                }
+              }
+
+              if (id) {
+                try {
+                  const material = await getById(id);
+                  if (material) {
+                    await closeWebQrModal();
+                    navigate(`/material/${material._id}`);
+                    return;
+                  }
+                } catch {
+                  setAlertContent({
+                    header: 'Material inexistent',
+                    message: `Materialul scanat (${id}) nu există în aplicație.`
+                  });
+                  setShowAlert(true);
+                  await closeWebQrModal();
+                  return;
+                }
+              }
+
+              setAlertContent({
+                header: 'QR invalid',
+                message: 'Codul QR scanat nu contine date valide de material.'
+              });
+              setShowAlert(true);
+              await closeWebQrModal();
+            },
+            () => {
+              // Handle scan errors (can be ignored for continuous scanning)
+            }
+          );
+        } catch {
+          setAlertContent({
+            header: 'Eroare cameră',
+            message: 'Nu s-a putut accesa camera. Verificați permisiunile.'
+          });
+          setShowAlert(true);
+          setShowWebQrModal(false);
+        }
+      };
+
+      startScanner();
+    }
+
+    // Cleanup function
+    return () => {
+      if (html5QrInstance.current && showWebQrModal) {
+        html5QrInstance.current.stop().catch(() => {
+          // Ignore cleanup errors
+        });
+      }
+    };
+  }, [showWebQrModal, navigate]);
+
   const closeWebQrModal = async () => {
     setShowWebQrModal(false);
     if (html5QrInstance.current) {
       try {
         await html5QrInstance.current.stop();
-      } catch (e) {
-        console.error(e);
+        await html5QrInstance.current.clear();
+      } catch {
+        // Ignore cleanup errors
       }
       html5QrInstance.current = null;
     }
   };
-
-  async function handleDeleteMaterial(id: string | undefined) {
-    if (!id) return;
-    try {
-      await deleteMaterial(id);
-      await loadData();
-    } catch {
-      setAlertContent({ header: 'Eroare', message: 'Nu s-a putut șterge materialul.' });
-      setShowAlert(true);
-    }
-  }
 
   // Footer actions for MaterialListView
   const { setFooterActions } = useUiState();
