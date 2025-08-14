@@ -22,6 +22,11 @@ const getMaterialFlow = async (id: string) => {
 
 import apiClient from './apiClient';
 import { Material } from '../types';
+// Get ancestors for a material by ID
+const getAncestors = async (id: string) => {
+    const response = await apiClient.get(`/materials/${id}/ancestors`);
+    return response.data;
+};
 
 // Create a new material
 const save = async (materialData: Material) => {
@@ -76,4 +81,4 @@ const processMaterials = async (sourceIds: string[], outputConfig: ProcessConfig
     return response.data;
 };
 
-export { save, getAll, getById, update, deleteMaterial, processMaterials, getMaterialFlow };
+export { save, getAll, getById, update, deleteMaterial, processMaterials, getMaterialFlow, getAncestors };

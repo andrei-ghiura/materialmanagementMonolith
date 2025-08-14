@@ -3,7 +3,6 @@ import { Material } from "../types";
 
 export async function makeLabelCanvas(material: Material): Promise<HTMLCanvasElement | null> {
     const parsedData = material
-    console.log('XXXX', parsedData)
     if (!parsedData) return null;
     const qrcodeContainer = document.getElementById("qrcode");
     if (!qrcodeContainer) return null;

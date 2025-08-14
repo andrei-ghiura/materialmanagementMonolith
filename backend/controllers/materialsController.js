@@ -43,7 +43,6 @@ exports.getMaterialById = async (req, res) => {
 
     const material = await Material.findOne({
       _id: req.params.id,
-      deleted: false,
     }).populate("componente", "humanId type specie");
 
     if (!material) {

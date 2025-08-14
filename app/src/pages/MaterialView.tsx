@@ -306,7 +306,7 @@ const MaterialView = () => {
                     Șterge
                 </Button>
             )}
-            <Button className="btn-default me-2" onClick={() => handleNav(() => navigate(`/material/${material._id}/components`))} size="sm" data-cy="export-components-btn">
+            <Button className="btn-default me-2" onClick={() => handleNav(() => navigate(`/material/${material._id}/ancestors`))} size="sm" data-cy="export-components-btn">
                 Export
             </Button>
             {!isNew && (
