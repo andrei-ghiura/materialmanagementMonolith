@@ -1,6 +1,5 @@
 exports.getProcessingTypes = (req, res) => {
   try {
-    const { require } = module;
     const { processingTypes } = require("../processingTypes");
     res.json(processingTypes);
   } catch (err) {
@@ -11,7 +10,6 @@ exports.getProcessingTypes = (req, res) => {
 exports.getProcessingTypesByMaterial = (req, res) => {
   try {
     const { materialType } = req.params;
-    const { require } = module;
     const { processingTypes } = require("../processingTypes");
     const validTypes = processingTypes.filter((type) =>
       type.sourceTypes.includes(materialType)

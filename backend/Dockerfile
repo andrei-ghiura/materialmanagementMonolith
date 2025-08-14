@@ -1,5 +1,5 @@
 # Use Node.js LTS version with security updates
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Create app directory and set proper user
 WORKDIR /app

@@ -8,6 +8,7 @@ import { Material } from '../types';
 import { Html5Qrcode } from 'html5-qrcode';
 import MaterialItem from '../components/MaterialItem';
 import Container from 'react-bootstrap/Container';
+import { Camera, GearFill, Hammer, Plus, QrCodeScan } from 'react-bootstrap-icons';
 
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
@@ -153,8 +154,8 @@ const MaterialListView: React.FC = () => {
           data-cy="add-material-btn"
           aria-label="Adaugă Material"
         >
-          <span className="d-md-none">+</span>
-          <span className="d-none d-md-inline">+ Adaugă</span>
+          <span className=""><Plus /></span>
+          <span className="d-none d-md-inline">Adaugă</span>
         </Button>
       ),
       actionsRight: (
@@ -165,14 +166,14 @@ const MaterialListView: React.FC = () => {
             onClick={scan}
             data-cy="scan-qr-btn"
           >
-            <span className="d-md-none">📷</span> <span className="d-none d-md-inline">Scanează Material</span>
+            <span className=""><QrCodeScan /></span> <span className="d-none d-md-inline">Scanează Material</span>
           </Button>
           <Button
             className="btn-default"
             style={{ fontWeight: 600, fontSize: '1.1rem', borderRadius: 12 }}
             onClick={() => navigate('/processing')}
           >
-            <span className="d-md-none">⚙️</span> <span className="d-none d-md-inline">Prelucrare</span>
+            <span className=""><Hammer /></span> <span className="d-none d-md-inline">Prelucrare</span>
           </Button>
         </>
       )
