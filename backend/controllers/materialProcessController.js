@@ -112,6 +112,7 @@ exports.processMaterials = async (req, res) => {
           `\nProcesat în ${outputMaterials
             .map((m) => m.humanId)
             .join(", ")} la ${new Date().toLocaleString()}`;
+        material.deleted = true;
         await material.save();
         updatedSourceMaterials.push(material);
       } catch (updateError) {

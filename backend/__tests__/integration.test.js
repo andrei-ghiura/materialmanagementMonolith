@@ -122,6 +122,14 @@ describe("Material Processing Workflow Integration Tests", () => {
       expect(bstnCount).toBe(2); // Original materials
       expect(bstfCount).toBe(3); // From fasonare
       expect(chnCount).toBe(5); // From gaterare
+
+      // Verify source materials are marked as deleted
+      for (const sourceId of bstnMaterialIds) {
+        const sourceMaterial = await request(app)
+          .get(`/materials/${sourceId}`)
+          .expect(200);
+        expect(sourceMaterial.body.deleted).toBe(true);
+      }
     });
   });
 

@@ -1,299 +1,84 @@
-import { Container, Navbar, Nav, Alert } from 'react-bootstrap';
+interface MaterialWithAncestors extends Material {
+    ancestors?: Array<{ processing: Processing; material: MaterialWithAncestors }>;
+}
+
+interface Layer {
+    type: 'material' | 'processing';
+    nodes: (Material | Processing)[];
+}
+import { Container, Alert } from 'react-bootstrap';
 import ReactFlow, {
     Background,
     Controls,
     Edge,
-    MarkerType,
     Node,
     useNodesState,
     useEdgesState,
-    NodeMouseHandler,
-    Position
+    MarkerType,
+    BackgroundVariant
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-// ...existing code...
 import { getAll, getMaterialFlow } from '../api/materials';
 
 import { Material } from '../types';
-import { getProcessingHistory, Processing } from '../api/processings';
 import { MaterialMappings } from '../config/materialMappings';
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
+import MaterialNode from '../components/flow/MaterialNode';
+import ProcessingNode from '../components/flow/ProcessingNode';
+import CustomEdge from '../components/flow/CustomEdge';
 
+interface Processing {
+    _id: string;
+    type: string;
+    description?: string;
+    date?: string;
+    [key: string]: unknown;
+}
+
+const MATERIAL_FLOW_ORDER = [
+    "BSTN",                 // Bustean
+    "fasonare",             // Processing: Fasonare
+    "BSTF",                 // Bustean fasonat
+    "gaterare",             // Processing: Gaterare
+    "CHN",                  // Cherestea netivită
+    "multilama_semitivire", // Processing: Multilama Semitivire
+    "CHS",                  // Cherestea semitivită
+    "multilama_tivire",     // Processing: Multilama Tivire
+    "CHT",                  // Cherestea tivită
+    "multilama_rindeluit",  // Processing: Multilama Rindeluit
+    "FRZ",                  // Frize
+    "mrp_rindeluire_frize", // Processing: MRP Rindeluire Frize
+    "FRZR",                 // Frize rindeluite
+    "mrp_leaturi",          // Processing: MRP Leaturi
+    "LEA",                  // Leaturi
+    "presa",                // Processing: Presa
+    "PAN"                   // Panouri
+];
 
 const MaterialFlowView: React.FC = () => {
     const [alert, setAlert] = useState<string | null>(null);
-    const navigate = useNavigate();
     const { id: urlMaterialId } = useParams<{ id?: string }>();
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-    const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+    // Removed unused allMaterials state
     const [selectedMaterialId, setSelectedMaterialId] = useState<string>("");
-    const [loading, setLoading] = useState(false);
+    // Removed unused loading state
     const [showQrModal, setShowQrModal] = useState(false);
     const webQrRef = useRef<HTMLDivElement>(null);
-    const html5QrInstance = useRef<any>(null);
+    const html5QrInstance = useRef<Html5Qrcode | null>(null);
 
-    // Define processing order based on material flow
-    const PROCESSING_ORDER = [
-        'BSTN',  // Buștean (raw material)
-        'BSTF',  // Buștean Fasonat
-        'CHN',   // Cherestea Netivită
-        'CHS',   // Cherestea Semitivită
-        'CHT',   // Cherestea Tivită
-        'FRZ',   // Frize
-        'FRZR',  // Frize Rindeluite
-        'LEA',   // Leaturi
-        'PAN'    // Panouri (final product)
-    ];
+    // Define custom node types
+    const nodeTypes = useMemo(() => ({
+        materialNode: MaterialNode,
+        processingNode: ProcessingNode,
+    }), []);
 
-    // Processing type labels mapping
-    const PROCESSING_TYPE_LABELS = new Map<string, string>([
-        ['fasonare', 'Fasonare'],
-        ['gaterare', 'Gaterare'],
-        ['multilama_semitivire', 'Multilama Semitivire'],
-        ['multilama_tivire', 'Multilama Tivire'],
-        ['multilama_rindeluit', 'Multilama Rindeluit'],
-        ['mrp_rindeluire_frize', 'MRP Rindeluire Frize'],
-        ['mrp_leaturi', 'MRP Leaturi'],
-        ['presa', 'Presa']
-    ]);
-
-    // Get processing type label
-    const getProcessingTypeLabel = (processingTypeId: string): string => {
-        return PROCESSING_TYPE_LABELS.get(processingTypeId) || processingTypeId;
-    };
-
-    // Get processing step index for ordering
-    const getProcessingStep = (materialType: string): number => {
-        const index = PROCESSING_ORDER.indexOf(materialType);
-        return index === -1 ? 999 : index; // Unknown types go to end
-    };
-
-    // Function to get material label
-    const getMaterialLabel = (material: Material) => {
-        const type = MaterialMappings.getMaterialTypeLabel(material.type);
-        const species = MaterialMappings.getWoodSpeciesLabel(material.specie);
-        return `${type} - ${species}`;
-    };
-
-    // Function to format processing date and time
-    const formatProcessingDateTime = (dateString: string) => {
-        const date = new Date(dateString);
-        const dateStr = date.toLocaleDateString('ro-RO');
-        const timeStr = date.toLocaleTimeString('ro-RO', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        return `${dateStr}\n${timeStr}`;
-    };
-
-    // Handle node click to navigate to MaterialView
-    const onNodeClick: NodeMouseHandler = (event, node) => {
-        // Only navigate for material nodes (not processing nodes)
-        if (node.data && node.data._id && !node.data.isProcessing) {
-            navigate(`/material/${node.data._id}`);
-        }
-    };
-
-    // Layout calculation - group by type and order by processing steps
-    const calculateNodePosition = (materialType: string, indexInType: number, totalInType: number) => {
-        const step = getProcessingStep(materialType);
-        const xPosition = step * 450; // Increased horizontal spacing for better spread
-
-        // Vertical positioning within each type group - increased spacing
-        const spacing = 200;
-        const yOffset = (indexInType - (totalInType - 1) / 2) * spacing;
-
-        return {
-            x: xPosition,
-            y: 500 + yOffset // Centered around y=500
-        };
-    };
-
-    // Calculate position for processing nodes (between material types)
-    const calculateProcessingNodePosition = (sourceType: string, targetType: string, index: number, total: number) => {
-        const sourceStep = getProcessingStep(sourceType);
-        const targetStep = getProcessingStep(targetType);
-        const xPosition = (sourceStep + targetStep) * 450 / 2; // Position between source and target
-
-        const spacing = 150;
-        const yOffset = (index - (total - 1) / 2) * spacing;
-
-        return {
-            x: xPosition,
-            y: 250 + yOffset // Position above material nodes with more space
-        };
-    };
-
-    // Process data into nodes and edges - grouped by material type
-    const processData = (materials: Material[], processings: Processing[]) => {
-        const newNodes: Node[] = [];
-        const newEdges: Edge[] = [];
-
-        // Group materials by type
-        const materialsByType = new Map<string, Material[]>();
-
-        materials.forEach(material => {
-            const type = material.type;
-            if (!materialsByType.has(type)) {
-                materialsByType.set(type, []);
-            }
-            materialsByType.get(type)!.push(material);
-        });
-
-        // Sort types by processing order and create material nodes
-        const sortedTypes = Array.from(materialsByType.keys()).sort((a, b) =>
-            getProcessingStep(a) - getProcessingStep(b)
-        );
-
-        sortedTypes.forEach(type => {
-            const materialsOfType = materialsByType.get(type)!;
-
-            materialsOfType.forEach((material, index) => {
-                newNodes.push({
-                    id: material._id,
-                    type: 'default',
-                    position: calculateNodePosition(type, index, materialsOfType.length),
-                    data: {
-                        label: getMaterialLabel(material),
-                        ...material
-                    },
-                    style: {
-                        background: getNodeColor(type),
-                        padding: 15,
-                        borderRadius: 12,
-                        border: `3px solid ${getBorderColor(type)}`,
-                        width: 220,
-                        height: 100,
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                    },
-                    sourcePosition: Position.Right,
-                    targetPosition: Position.Left
-                });
-            });
-        });
-
-        // Create processing nodes and edges
-        processings.forEach((proc, index) => {
-            const processingNodeId = `process-${proc._id}`;
-
-            // Determine source and target material types for positioning
-            const sourceType = proc.sourceIds[0]?.type || 'BSTN';
-            const targetType = proc.outputType;
-
-            // Add processing node
-            newNodes.push({
-                id: processingNodeId,
-                type: 'default',
-                position: calculateProcessingNodePosition(sourceType, targetType, index, processings.length),
-                data: {
-                    label: `${getProcessingTypeLabel(proc.processingTypeId)}\n${formatProcessingDateTime(proc.processingDate)}`,
-                    isProcessing: true
-                },
-                style: {
-                    background: '#fff9e6',
-                    padding: 8,
-                    borderRadius: '50%',
-                    border: '4px solid #ff9933',
-                    width: 140,
-                    height: 140,
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 6px 12px rgba(255, 153, 51, 0.4)',
-                    color: '#cc6600',
-                    lineHeight: '1.2'
-                },
-                sourcePosition: Position.Right,
-                targetPosition: Position.Left
-            });
-
-            // Add edges from source materials to processing node
-            proc.sourceIds.forEach(source => {
-                newEdges.push({
-                    id: `${source._id}-${processingNodeId}`,
-                    source: source._id,
-                    target: processingNodeId,
-                    type: 'bezier',
-                    animated: true,
-                    style: {
-                        stroke: '#0066cc',
-                        strokeWidth: 3
-                    },
-                    markerEnd: {
-                        type: MarkerType.ArrowClosed,
-                    }
-                });
-            });
-
-            // Add edges from processing node to result materials
-            proc.outputIds.forEach(result => {
-                newEdges.push({
-                    id: `${processingNodeId}-${result._id}`,
-                    source: processingNodeId,
-                    target: result._id,
-                    type: 'bezier',
-                    animated: true,
-                    style: {
-                        stroke: '#66cc00',
-                        strokeWidth: 3
-                    },
-                    markerEnd: {
-                        type: MarkerType.ArrowClosed,
-                    }
-                });
-            });
-        });
-
-        setNodes(newNodes);
-        setEdges(newEdges);
-    };
-
-    // Get node background color based on material type
-    const getNodeColor = (materialType: string): string => {
-        const step = getProcessingStep(materialType);
-        const colors = [
-            '#e6f3ff', // BSTN - light blue
-            '#e6f7ff', // BSTF - lighter blue
-            '#fff3e6', // CHN - light orange
-            '#fff7e6', // CHS - lighter orange
-            '#fffbe6', // CHT - very light orange
-            '#f0ffe6', // FRZ - light green
-            '#f5ffe6', // FRZR - lighter green
-            '#e6ffe6', // LEA - very light green
-            '#ffe6f7'  // PAN - light pink
-        ];
-        return colors[step] || '#f5f5f5';
-    };
-
-    // Get border color based on material type
-    const getBorderColor = (materialType: string): string => {
-        const step = getProcessingStep(materialType);
-        const colors = [
-            '#0066cc', // BSTN - blue
-            '#0080ff', // BSTF - lighter blue
-            '#ff9933', // CHN - orange
-            '#ffaa44', // CHS - lighter orange
-            '#ffbb55', // CHT - even lighter orange
-            '#66cc00', // FRZ - green
-            '#77dd11', // FRZR - lighter green
-            '#88ee22', // LEA - even lighter green
-            '#cc6699'  // PAN - pink
-        ];
-        return colors[step] || '#999999';
-    };
-
+    // Define custom edge types
+    const edgeTypes = useMemo(() => ({
+        customEdge: CustomEdge,
+    }), []);
 
     // QR code scan logic
     useEffect(() => {
@@ -319,7 +104,7 @@ const MaterialFlowView: React.FC = () => {
                                 if (html5QrInstance.current) html5QrInstance.current.stop();
                             }
                         },
-                        (errorMessage: string) => {
+                        () => {
                             // ignore
                         }
                     )
@@ -335,7 +120,7 @@ const MaterialFlowView: React.FC = () => {
 
     useEffect(() => {
         // Load all materials for selector
-        getAll().then(setAllMaterials).catch(() => setAlert('Nu s-au putut încărca materialele.'));
+        getAll().catch(() => setAlert('Nu s-au putut încărca materialele.'));
     }, []);
 
     // If urlMaterialId is present, set it as selectedMaterialId on mount
@@ -347,127 +132,160 @@ const MaterialFlowView: React.FC = () => {
 
     useEffect(() => {
         if (selectedMaterialId) {
-            setLoading(true);
             getMaterialFlow(selectedMaterialId)
                 .then(flow => {
-                    // Compose nodes/edges from flow (ancestors, descendants, processings)
-                    // For now, just show the material and its direct ancestors/descendants
-                    const nodes: Node[] = [];
-                    const edges: Edge[] = [];
-                    const { material, ancestors, descendants, processingsAsSource, processingsAsOutput } = flow;
-                    // Main node
-                    nodes.push({
-                        id: material._id,
-                        type: 'default',
-                        position: { x: 0, y: 0 },
-                        data: { label: getMaterialLabel(material), ...material },
+                    const allNodes: Node[] = [];
+                    const allEdges: Edge[] = [];
+                    const nodeMap: { [id: string]: Node } = {};
+                    const edgeList: Edge[] = [];
+                    // Helper to add a node
+                    function addNode(id: string, type: string, data: any) {
+                        if (!nodeMap[id]) {
+                            nodeMap[id] = {
+                                id,
+                                type: type === 'material' ? 'materialNode' : 'processingNode',
+                                position: { x: 0, y: 0 },
+                                data: { ...data, nodeType: data.type },
+                            };
+                        }
+                    }
+                    // Helper to add an edge
+                    function addEdge(source: string, target: string) {
+                        edgeList.push({
+                            id: `${source}->${target}`,
+                            source,
+                            target,
+                            type: 'customEdge',
+                            sourceHandle: 'bottom',
+                            targetHandle: 'top',
+                            markerEnd: {
+                                type: MarkerType.ArrowClosed,
+                                color: '#4facfe',
+                            },
+                            data: {}
+                        });
+                    }
+                    // Recursive traversal for ancestors
+                    function traverseAncestors(node: any) {
+                        if (!node) return;
+                        addNode(node._id, 'material', {
+                            label: MaterialMappings.getMaterialTypeLabel(node.type),
+                            ...node
+                        });
+                        if (node.ancestors && Array.isArray(node.ancestors)) {
+                            node.ancestors.forEach((ancestor) => {
+                                const proc = ancestor.processing;
+                                const mat = ancestor.material;
+                                addNode(proc._id, 'processing', {
+                                    label: `Processing: ${proc.processingTypeId}`,
+                                    type: proc.processingTypeId,
+                                    description: proc.description,
+                                    date: proc.date
+                                });
+                                addEdge(proc._id, node._id);
+                                addNode(mat._id, 'material', {
+                                    label: MaterialMappings.getMaterialTypeLabel(mat.type),
+                                    ...mat
+                                });
+                                addEdge(mat._id, proc._id);
+                                traverseAncestors(mat);
+                            });
+                        }
+                    }
+                    // Recursive traversal for descendants
+                    function traverseDescendants(node: any) {
+                        if (!node) return;
+                        addNode(node._id, 'material', {
+                            label: MaterialMappings.getMaterialTypeLabel(node.type),
+                            ...node
+                        });
+                        if (node.descendants && Array.isArray(node.descendants)) {
+                            node.descendants.forEach(({ processing, material }) => {
+                                addNode(processing._id, 'processing', {
+                                    label: `Processing: ${processing.processingTypeId}`,
+                                    type: processing.processingTypeId,
+                                    description: processing.description,
+                                    date: processing.date
+                                });
+                                addEdge(node._id, processing._id);
+                                addEdge(processing._id, material._id);
+                                traverseDescendants(material);
+                            });
+                        }
+                    }
+                    // Traverse ancestors and descendants from correct roots
+                    if (flow.ancestors) {
+                        traverseAncestors(flow.ancestors);
+                    } else if (flow.material) {
+                        traverseAncestors(flow.material);
+                    }
+                    if (flow.material) {
+                        traverseDescendants(flow.material);
+                    }
+                    // Also add direct descendants processings (if any)
+                    if (flow.descendants && flow.descendants.processings) {
+                        flow.descendants.processings.forEach((proc: Processing) => {
+                            addNode(proc._id, 'processing', {
+                                label: `Processing: ${proc.processingTypeId}`,
+                                type: proc.processingTypeId,
+                                description: proc.description,
+                                date: proc.date,
+                            });
+                            addEdge(flow.material._id, proc._id);
+                        });
+                    }
+                    // Order nodes by MATERIAL_FLOW_ORDER
+                    const orderedNodes = Object.values(nodeMap)
+                        .sort((a, b) => {
+                            const aType = a.data.type;
+                            const bType = b.data.type;
+                            return MATERIAL_FLOW_ORDER.indexOf(aType) - MATERIAL_FLOW_ORDER.indexOf(bType);
+                        });
+                    // Assign positions: vertical by order, horizontal by sibling index
+                    const groupedNodes = orderedNodes.reduce((acc, node) => {
+                        acc[node.data.type] = acc[node.data.type] || [];
+                        acc[node.data.type].push(node);
+                        return acc;
+                    }, {} as Record<string, Node[]>);
+                    MATERIAL_FLOW_ORDER.forEach((type, idxGroup) => {
+                        const nodesOfType = groupedNodes[type] || [];
+                        const nrNodesOfType = nodesOfType.length;
+                        nodesOfType.forEach((node, idx) => {
+                            node.position = { x: 100 + (-nrNodesOfType / 2 * 300) + idx * 300, y: 100 + idxGroup * 220 };
+                            node.width = 220;
+                            node.height = 120;
+                            allNodes.push(node);
+
+                        });
                     });
-                    // Ancestors
-                    ancestors.forEach((a: Material, i: number) => {
-                        nodes.push({
-                            id: a._id,
-                            type: 'default',
-                            position: { x: -250, y: -100 + i * 120 },
-                            data: { label: getMaterialLabel(a), ...a },
-                        });
-                        edges.push({
-                            id: `${a._id}->${material._id}`,
-                            source: a._id,
-                            target: material._id,
-                            type: 'bezier',
-                        });
-                    });
-                    // Descendants
-                    descendants.forEach((d: Material, i: number) => {
-                        nodes.push({
-                            id: d._id,
-                            type: 'default',
-                            position: { x: 250, y: -100 + i * 120 },
-                            data: { label: getMaterialLabel(d), ...d },
-                        });
-                        edges.push({
-                            id: `${material._id}->${d._id}`,
-                            source: material._id,
-                            target: d._id,
-                            type: 'bezier',
-                        });
-                    });
-                    setNodes(nodes);
-                    setEdges(edges);
+
+                    allEdges.push(...edgeList);
+                    setNodes(allNodes);
+                    setEdges(allEdges);
                 })
-                .catch(() => setAlert('Nu s-a putut încărca fluxul materialului.'))
-                .finally(() => setLoading(false));
-        } else {
-            setNodes([]);
-            setEdges([]);
+                .catch(() => setAlert('Nu s-a putut încărca fluxul materialului.'));
         }
     }, [selectedMaterialId]);
-
-    // ReactFlow configuration
-    const flowStyle = useMemo(() => ({
-        width: '100%',
-        height: 'calc(100vh - 56px)',
-        minWidth: '1800px' // Increased to accommodate wider spacing
-    }), []);
-
     return (
-        <Container fluid style={{ padding: 0 }}>
-            {alert && (
-                <Alert variant="danger" onClose={() => setAlert(null)} dismissible>
-                    {alert}
-                </Alert>
-            )}
-            <div className="d-flex align-items-center mb-3 px-3">
-                <label className="me-2">Selectează materialul:</label>
-                <select
-                    className="form-select me-2"
-                    style={{ width: 300 }}
-                    value={selectedMaterialId}
-                    onChange={e => setSelectedMaterialId(e.target.value)}
-                >
-                    <option value="">-- Selectează --</option>
-                    {allMaterials.map(m => (
-                        <option key={m._id} value={m._id}>{m.humanId} ({MaterialMappings.getMaterialTypeLabel(m.type)})</option>
-                    ))}
-                </select>
-                <button className="btn btn-info me-2" onClick={() => setShowQrModal(true)} type="button">Scan QR</button>
-            </div>
-            {loading && <div className="text-center">Se încarcă fluxul...</div>}
-            <div style={flowStyle}>
+        <Container fluid className="p-3">
+            {alert && <Alert variant="danger" onClose={() => setAlert(null)} dismissible>{alert}</Alert>}
+            <div style={{ height: '80vh', border: '1px solid #ddd' }}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
-                    onNodeClick={onNodeClick}
+                    nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
                     fitView
+                    attributionPosition="bottom-right"
                 >
-                    <Background />
                     <Controls />
+                    <Background variant={BackgroundVariant.Dots} gap={12} />
                 </ReactFlow>
             </div>
-            {/* QR Modal */}
-            {showQrModal && (
-                <div className="modal show d-block" tabIndex={-1} style={{ background: 'rgba(0,0,0,0.5)' }}>
-                    <div className="modal-dialog modal-dialog-centered">
-                        <div className="modal-content">
-                            <div className="modal-header">
-                                <h5 className="modal-title">Scanează QR Material</h5>
-                                <button type="button" className="btn-close" onClick={() => setShowQrModal(false)}></button>
-                            </div>
-                            <div className="modal-body">
-                                <div id="web-qr-reader" ref={webQrRef} style={{ width: 300, height: 300, background: '#000', margin: '0 auto' }}></div>
-                            </div>
-                            <div className="modal-footer">
-                                <button className="btn btn-secondary" onClick={() => setShowQrModal(false)}>Închide</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </Container>
     );
-
 };
 
 export default MaterialFlowView;

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Modal from 'react-bootstrap/Modal';
 import Button from 'react-bootstrap/Button';
 import { Material } from '../types';
 import Table from 'react-bootstrap/Table';
+import { MaterialMappings } from '../config/materialMappings';
 
 interface MaterialTableProps {
     materials: Material[];
@@ -10,10 +11,10 @@ interface MaterialTableProps {
 }
 
 const columns = [
+    { key: 'tip', label: 'Tip', get: (m: Material) => MaterialMappings.getMaterialTypeLabel(m.tip || m.type || '-') },
     { key: 'id', label: 'ID', get: (m: Material) => m.id || m._id || '-' },
-    { key: 'humanId', label: 'Human ID', get: (m: Material) => m.humanId || '-' },
-    { key: 'tip', label: 'Tip', get: (m: Material) => m.tip || m.type || '-' },
-    { key: 'specie', label: 'Specie', get: (m: Material) => m.specie || '-' },
+    { key: 'humanId', label: 'ID', get: (m: Material) => m.humanId || '-' },
+    { key: 'specie', label: 'Specie', get: (m: Material) => MaterialMappings.getWoodSpeciesLabel(m.specie || '-') },
     { key: 'stare', label: 'Stare', get: (m: Material) => m.state || '-' },
     { key: 'cod_unic_aviz', label: 'Cod Unic Aviz', get: (m: Material) => m.cod_unic_aviz || '-' },
     { key: 'data', label: 'Data', get: (m: Material) => m.data || '-' },
@@ -35,14 +36,50 @@ const columns = [
 const MaterialTable: React.FC<MaterialTableProps> = ({ materials, onRowClick }) => {
     const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(() => {
         const initial: Record<string, boolean> = {};
-        columns.forEach(col => { initial[col.key] = true; });
+        columns.forEach(col => {
+            initial[col.key] = ['humanId', 'tip', 'specie', 'cod_unic_aviz', 'data', 'apv'].includes(col.key);
+        });
         return initial;
     });
+
+    const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+        const initial: Record<string, number> = {};
+        columns.forEach(col => {
+            initial[col.key] = 140;
+        });
+        return initial;
+    });
+    const resizingCol = useRef<string | null>(null);
+    const startX = useRef<number>(0);
+    const startWidth = useRef<number>(0);
 
     const [showSettings, setShowSettings] = useState(false);
 
     const handleToggle = (key: string) => {
         setVisibleCols(cols => ({ ...cols, [key]: !cols[key] }));
+    };
+
+    const handleMouseDown = (key: string, e: React.MouseEvent) => {
+        resizingCol.current = key;
+        startX.current = e.clientX;
+        startWidth.current = colWidths[key];
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!resizingCol.current) return;
+        const delta = e.clientX - startX.current;
+        setColWidths(widths => ({
+            ...widths,
+            [resizingCol.current!]: Math.max(60, startWidth.current + delta)
+        }));
+    };
+
+    const handleMouseUp = () => {
+        resizingCol.current = null;
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
     };
 
     return (
@@ -56,7 +93,26 @@ const MaterialTable: React.FC<MaterialTableProps> = ({ materials, onRowClick }) 
                 <thead>
                     <tr>
                         {columns.filter(col => visibleCols[col.key]).map(col => (
-                            <th key={col.key}>{col.label}</th>
+                            <th
+                                key={col.key}
+                                style={{ position: 'relative', width: colWidths[col.key], minWidth: 60 }}
+                            >
+                                <span>{col.label}</span>
+                                <span
+                                    style={{
+                                        position: 'absolute',
+                                        right: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: 8,
+                                        cursor: 'col-resize',
+                                        zIndex: 2,
+                                        userSelect: 'none',
+                                        background: 'rgba(0,0,0,0.03)'
+                                    }}
+                                    onMouseDown={e => handleMouseDown(col.key, e)}
+                                />
+                            </th>
                         ))}
                     </tr>
                 </thead>
@@ -69,7 +125,7 @@ const MaterialTable: React.FC<MaterialTableProps> = ({ materials, onRowClick }) 
                             data-cy={`material-table-row-${material.id || material._id}`}
                         >
                             {columns.filter(col => visibleCols[col.key]).map(col => (
-                                <td key={col.key}>{col.get(material)}</td>
+                                <td key={col.key} style={{ width: colWidths[col.key], minWidth: 60 }}>{col.get(material)}</td>
                             ))}
                         </tr>
                     ))}

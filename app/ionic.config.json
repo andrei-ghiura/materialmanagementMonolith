@@ -1,7 +1,0 @@
-{
-  "name": "materialmanager",
-  "integrations": {
-    "capacitor": {}
-  },
-  "type": "react-vite"
-}

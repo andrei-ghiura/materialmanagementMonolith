@@ -1,0 +1,51 @@
+[
+    {
+        "_id": "material-1",
+        "humanId": "MAT-001",
+        "type": "Buștean",
+        "specie": "Stejar",
+        "cod_unic_aviz": "AVZ-12345",
+        "data": "2025-08-14",
+        "apv": "APV-67890",
+        "lat": "45.123",
+        "log": "25.456",
+        "nr_placuta_rosie": "100",
+        "lungime": "5.2",
+        "diametru": "30",
+        "volum_placuta_rosie": "1.5",
+        "volum_total": "2.5",
+        "observatii": "Test material 1"
+    },
+    {
+        "_id": "material-2",
+        "humanId": "MAT-002",
+        "type": "Cherestea",
+        "specie": "Fag",
+        "cod_unic_aviz": "AVZ-54321",
+        "data": "2025-08-13",
+        "apv": "APV-09876",
+        "lat": "46.321",
+        "log": "26.654",
+        "volum_total": "1.8",
+        "nr_bucati": "120",
+        "volum_net_paletizat": "1.6",
+        "volum_brut_paletizat": "1.9",
+        "observatii": "Test material 2"
+    },
+    {
+        "_id": "material-3",
+        "humanId": "MAT-003",
+        "type": "Palet",
+        "specie": "Brad",
+        "cod_unic_aviz": "AVZ-98765",
+        "data": "2025-08-12",
+        "apv": "APV-13579",
+        "lat": "47.456",
+        "log": "27.789",
+        "volum_total": "3.2",
+        "nr_bucati": "50",
+        "volum_net_paletizat": "2.8",
+        "volum_brut_paletizat": "3.1",
+        "observatii": "Test material 3"
+    }
+]

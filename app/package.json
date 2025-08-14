@@ -1,5 +1,5 @@
 {
-  "name": "ionic-app-base",
+  "name": "fabrica-cherestea",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,10 +8,13 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test.e2e": "cypress run",
+    "test.e2e:open": "cypress open",
+    "test.e2e:headed": "cypress run --headed",
+    "test.component": "cypress run --component",
+    "test.component:open": "cypress open --component",
     "test.unit": "vitest",
-    "android": "ionic cap run android",
-    "android:open": "ionic cap open android",
-    "android logs": "ionic cap run android --consolelogs --serverlogs",
+    "test.all": "npm run test.unit && npm run test.component && npm run test.e2e",
+    "test.ci": "npm run test.unit -- --run && npm run test.component && npm run test.e2e",
     "lint": "eslint"
   },
   "dependencies": {
@@ -25,8 +28,6 @@
     "@capacitor/keyboard": "7.0.1",
     "@capacitor/local-notifications": "^7.0.1",
     "@capacitor/status-bar": "7.0.1",
-    "@ionic/react": "^8.5.0",
-    "@ionic/storage": "^4.0.0",
     "@types/react-router": "^5.1.20",
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.9.0",

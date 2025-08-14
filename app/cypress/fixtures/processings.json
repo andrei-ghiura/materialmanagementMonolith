@@ -1,0 +1,35 @@
+[
+    {
+        "_id": "processing-1",
+        "materialId": "material-1",
+        "type": "Tăiere",
+        "date": "2025-08-15",
+        "operatorId": "operator-1",
+        "notes": "First processing step",
+        "startTime": "08:00",
+        "endTime": "12:00",
+        "status": "completed"
+    },
+    {
+        "_id": "processing-2",
+        "materialId": "material-1",
+        "type": "Șlefuire",
+        "date": "2025-08-16",
+        "operatorId": "operator-2",
+        "notes": "Second processing step",
+        "startTime": "13:00",
+        "endTime": "17:00",
+        "status": "in-progress"
+    },
+    {
+        "_id": "processing-3",
+        "materialId": "material-2",
+        "type": "Paletizare",
+        "date": "2025-08-17",
+        "operatorId": "operator-1",
+        "notes": "Packaging for shipment",
+        "startTime": "09:00",
+        "endTime": "11:00",
+        "status": "pending"
+    }
+]
