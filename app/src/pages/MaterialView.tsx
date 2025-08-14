@@ -288,13 +288,13 @@ const MaterialView = () => {
     // Memoize footer actions to avoid unnecessary re-renders and stale closures
     const actionsLeft = useMemo(() => (
         <Button
-            className="btn-transparent me-2"
+            className="me-2"
             onClick={() => handleNav(() => navigate(-1))}
             size="sm"
             style={{ fontSize: 20, textDecoration: 'none' }}
             data-cy="footer-back-btn"
         >
-            ← înapoi
+            Anulează
         </Button>
     ), [handleNav, navigate]);
 

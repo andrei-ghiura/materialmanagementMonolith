@@ -26,9 +26,8 @@ if (!db.getCollectionNames().includes("processings")) {
   db.processings.createIndex({ outputIds: 1 });
 }
 // Use environment variables for app user and password (set in docker-compose)
-var appUser = process.env["MONGO_APP_USER"] || "app_user_mm_202508";
-var appPassword =
-  process.env["MONGO_APP_PASSWORD"] || "BkadROBSPbeDDsH5FwKv7LVJ";
+var appUser = process.env["MONGO_APP_USER"] || "mongo_app_user";
+var appPassword = process.env["MONGO_APP_PASSWORD"] || "mongo_app_password";
 
 if (!db.getUser(appUser)) {
   db.createUser({
@@ -42,6 +41,24 @@ if (!db.getUser(appUser)) {
   print("Application user created successfully");
 } else {
   print("Application user already exists");
+}
+
+// Create the admin user for Mongo Express
+const adminDb = db.getSiblingDB("admin");
+var adminUser = process.env["MONGO_INITDB_ROOT_USERNAME"] || "admin";
+var adminPassword =
+  process.env["MONGO_INITDB_ROOT_PASSWORD"] || "adminpassword";
+
+if (!adminDb.getUser(adminUser)) {
+  adminDb.createUser({
+    user: adminUser,
+    pwd: adminPassword,
+    roles: [
+      { role: "userAdminAnyDatabase", db: "admin" },
+      { role: "readWriteAnyDatabase", db: "admin" },
+      { role: "dbAdminAnyDatabase", db: "admin" },
+    ],
+  });
 }
 
 print("Database initialization completed");

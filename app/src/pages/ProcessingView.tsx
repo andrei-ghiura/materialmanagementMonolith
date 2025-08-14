@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Container, Form, Button, Modal, ListGroup, Alert, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaCheck, FaQrcode, FaSave } from 'react-icons/fa';
-// ...existing code...
 import { Html5Qrcode } from 'html5-qrcode';
 import { Material } from '../types';
 import { getAll, getById, processMaterials as processAPI } from '../api/materials';
@@ -24,12 +23,6 @@ interface ProcessingType {
         transform?: ((value: unknown, sourceMaterials: Material[]) => unknown);
     }>;
 }
-
-// Check if we're on web or native
-const isWeb = () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return !(window as any).Capacitor?.isNativePlatform?.();
-};
 
 /*
 API Endpoint design prompt:
@@ -75,8 +68,8 @@ const ProcessingView: React.FC = () => {
         try {
             const response = await apiClient.get('/processing-types');
             setAllProcessingTypes(response.data);
-        } catch (error) {
-            console.error('Failed to load processing types:', error);
+        } catch {
+            console.error('Failed to load processing types');
         }
     };
 
@@ -196,8 +189,8 @@ const ProcessingView: React.FC = () => {
             const materials = await getAll();
             setAllMaterials(materials);
             setFilteredMaterials(materials);
-        } catch (error) {
-            console.error('Failed to load materials:', error);
+        } catch {
+            console.error('Failed to load materials.');
             setAlert({
                 header: 'Eroare',
                 message: 'Nu s-au putut încărca materialele.',
@@ -235,6 +228,7 @@ const ProcessingView: React.FC = () => {
                 setAlert({ header: 'Material inexistent', message: `Materialul cu ID-ul ${id} nu există.`, variant: 'danger' });
             }
         } catch (error) {
+            console.error('Error adding material:', error);
             setAlert({ header: 'Eroare', message: 'Nu s-a putut adăuga materialul.', variant: 'danger' });
         }
     };
@@ -358,8 +352,9 @@ const ProcessingView: React.FC = () => {
             {selectedProcessingType && (
                 <Alert variant="secondary">
                     <div><strong>Descriere:</strong> {selectedProcessingType.description}</div>
-                    <div><strong>Tip rezultat:</strong> {selectedProcessingType.resultType === 'same' ? 'Același ca sursa' : selectedProcessingType.resultType}</div>
-                    <div><strong>Tipuri materiale acceptate:</strong> {selectedProcessingType.sourceTypes.join(', ')}</div>
+                    <div>
+                        <strong>Tipuri materiale acceptate:</strong> {selectedProcessingType.sourceTypes.map(type => MaterialMappings.getMaterialTypeLabel(type)).join(', ')} → {selectedProcessingType.resultType === 'same' ? 'Același ca sursa' : MaterialMappings.getMaterialTypeLabel(selectedProcessingType.resultType)}
+                    </div>
                 </Alert>
             )}
 
