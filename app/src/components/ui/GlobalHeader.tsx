@@ -7,7 +7,7 @@ import Button from 'react-bootstrap/Button';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 // If you have a ThemeContext, import it. Otherwise, use a prop or fallback to a default.
 import { useUiState } from '../../components/ui/UiStateContext';
-
+import useI18n from '../../hooks/useI18n';
 
 import React, { useState } from 'react';
 // ...existing code...
@@ -19,6 +19,7 @@ const GlobalHeader: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [show, setShow] = useState(false);
+  const { t } = useI18n();
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
@@ -26,6 +27,68 @@ const GlobalHeader: React.FC = () => {
 
   // Don't show back button on home page
   const showBackButton = location.pathname !== '/';
+
+  // Breadcrumbs logic
+  const [materialName, setMaterialName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // If on material detail page, fetch material
+    const match = location.pathname.match(/^\/material\/(\w{24})(?:$|\/)/);
+    if (match) {
+      const id = match[1];
+      import('../../api/materials').then(({ getById }) => {
+        getById(id).then((mat) => {
+          setMaterialName(mat.humanId || mat.nume || mat._id);
+        }).catch(() => setMaterialName(null));
+      });
+    } else {
+      setMaterialName(null);
+    }
+  }, [location.pathname]);
+
+  const getBreadcrumbs = () => {
+    const path = location.pathname;
+    const segments = path.split('/').filter(Boolean);
+    const crumbs: { label: string; to?: string }[] = [];
+    if (segments.length === 0) {
+      crumbs.push({ label: t('navigation.materialList'), to: '/' });
+    } else {
+      let currentPath = '';
+      segments.forEach((seg, idx) => {
+        currentPath += '/' + seg;
+        let label = '';
+        switch (seg) {
+          case 'material':
+            label = t('navigation.materialList');
+            break;
+          case 'processing':
+            label = t('navigation.processing');
+            break;
+          case 'flow':
+            label = t('navigation.flow');
+            break;
+          case 'settings':
+            label = t('navigation.settings');
+            break;
+          case 'ancestors':
+            label = t('material.components');
+            break;
+          default:
+            // If it's a material id, show humanId if available
+            if (currentPath.match(/^\/material\/(\w{24})$/) && materialName) {
+              label = materialName;
+            } else if (seg.match(/^[0-9a-fA-F]{24}$/)) {
+              label = t('common.details');
+            } else {
+              label = seg;
+            }
+        }
+        crumbs.push({ label, to: idx < segments.length - 1 ? currentPath : undefined });
+      });
+    }
+    return crumbs;
+  };
+  const breadcrumbs = getBreadcrumbs();
 
   return (
     <Navbar
@@ -53,9 +116,29 @@ const GlobalHeader: React.FC = () => {
             ←
           </Button>
         )}
-        <Navbar.Brand href="#home">Material Manager</Navbar.Brand>
+        {/* Breadcrumbs */}
+        <nav aria-label="breadcrumb">
+          <ol className="breadcrumb mb-0" style={{ background: 'transparent', padding: 0 }}>
+            {breadcrumbs.map((crumb, idx) => (
+              <li
+                key={idx}
+                className={`breadcrumb-item${idx === breadcrumbs.length - 1 ? ' active' : ''}`}
+                aria-current={idx === breadcrumbs.length - 1 ? 'page' : undefined}
+              >
+                {crumb.to ? (
+                  <Link to={crumb.to} style={{ textDecoration: 'none', color: theme === 'dark' ? '#fff' : '#007bff' }}>{crumb.label}</Link>
+                ) : (
+                  crumb.label
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
       </div>
-      <Navbar.Toggle aria-controls="offcanvas-navbar" onClick={handleShow} />
+
+      <div className="d-flex align-items-center">
+        <Navbar.Toggle aria-controls="offcanvas-navbar" onClick={handleShow} />
+      </div>
       <Navbar.Offcanvas
         show={show}
         onHide={handleClose}
@@ -66,13 +149,13 @@ const GlobalHeader: React.FC = () => {
       >
         <Offcanvas.Header closeButton>
           <Offcanvas.Title id="offcanvas-navbar-label">
-            Material Manager
+            {t('common.appTitle')}
           </Offcanvas.Title>
         </Offcanvas.Header>
         <Offcanvas.Body>
-          <Nav className="me-auto">
-            <Nav.Link as={Link} to="/" onClick={handleClose}>Material List</Nav.Link>
-            <Nav.Link as={Link} to="/settings" onClick={handleClose}>Settings</Nav.Link>
+          <Nav className="ms-auto">
+            <Nav.Link as={Link} to="/" onClick={handleClose}>{t('navigation.materialList')}</Nav.Link>
+            <Nav.Link as={Link} to="/settings" onClick={handleClose}>{t('navigation.settings')}</Nav.Link>
           </Nav>
         </Offcanvas.Body>
       </Navbar.Offcanvas>

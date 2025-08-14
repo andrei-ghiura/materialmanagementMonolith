@@ -40,6 +40,7 @@ interface MaterialFilters {
     type?: string;
     specie?: string;
     state?: string;
+    showDeleted?: string;
 }
 
 const getAll = async (filters?: MaterialFilters) => {

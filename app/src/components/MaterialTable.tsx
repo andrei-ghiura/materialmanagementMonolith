@@ -59,6 +59,22 @@ const MaterialTable: React.FC<MaterialTableProps> = ({ materials, onRowClick }) 
         setVisibleCols(cols => ({ ...cols, [key]: !cols[key] }));
     };
 
+    const handleSelectAll = () => {
+        const allSelected: Record<string, boolean> = {};
+        columns.forEach(col => {
+            allSelected[col.key] = true;
+        });
+        setVisibleCols(allSelected);
+    };
+
+    const handleClearAll = () => {
+        const allDeselected: Record<string, boolean> = {};
+        columns.forEach(col => {
+            allDeselected[col.key] = false;
+        });
+        setVisibleCols(allDeselected);
+    };
+
     const handleMouseDown = (key: string, e: React.MouseEvent) => {
         resizingCol.current = key;
         startX.current = e.clientX;
@@ -136,18 +152,40 @@ const MaterialTable: React.FC<MaterialTableProps> = ({ materials, onRowClick }) 
                     <Modal.Title>Setări tabel</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ marginBottom: '12px', display: 'flex', gap: '8px' }}>
+                        <Button variant="outline-primary" size="sm" onClick={handleSelectAll}>
+                            Selectează toate
+                        </Button>
+                        <Button variant="outline-secondary" size="sm" onClick={handleClearAll}>
+                            Deselectează toate
+                        </Button>
+                    </div>
+                    <div className="multiselect-container">
                         {columns.map(col => (
-                            <label key={col.key} style={{ fontWeight: 400, minWidth: 120 }}>
+                            <div
+                                key={col.key}
+                                className={`multiselect-item ${visibleCols[col.key] ? 'multiselect-item-selected' : ''}`}
+                                onClick={() => handleToggle(col.key)}
+                            >
                                 <input
                                     type="checkbox"
                                     checked={visibleCols[col.key]}
-                                    onChange={() => handleToggle(col.key)}
-                                    style={{ marginRight: 4 }}
+                                    onChange={() => { }} // Controlled by parent div click
+                                    style={{ marginRight: 8, pointerEvents: 'none' }}
                                 />
-                                {col.label}
-                            </label>
+                                <span className="multiselect-item-text">
+                                    {col.label}
+                                </span>
+                                {visibleCols[col.key] && (
+                                    <span className="multiselect-item-check">
+                                        ✓
+                                    </span>
+                                )}
+                            </div>
                         ))}
+                    </div>
+                    <div className="multiselect-counter">
+                        {Object.values(visibleCols).filter(Boolean).length} din {columns.length} coloane selectate
                     </div>
                 </Modal.Body>
                 <Modal.Footer>

@@ -3,6 +3,10 @@
  * 
  * This file provides optimized lookups for database IDs to human-readable labels
  * and vice versa. Maps are used for O(1) lookup performance.
+ * 
+ * Note: This file now supports i18n. For translated labels, use the 
+ * MaterialMappings.getMaterialTypeLabel() and MaterialMappings.getWoodSpeciesLabel()
+ * functions with a translation function.
  */
 
 // Type definitions
@@ -17,85 +21,88 @@ export interface WoodSpeciesOption {
     label: string;
 }
 
-// Material Types Configuration
+// Translation function type
+export type TranslationFunction = (key: string) => string;
+
+// Material Types Configuration (with fallback Romanian labels)
 export const MATERIAL_TYPES: readonly MaterialTypeOption[] = [
     {
         id: "BSTN",
-        label: "Buștean",
+        label: "Buștean", // Fallback label, use t('material.materialTypes.BSTN') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "nr_placuta_rosie", "lungime", "diametru", "volum_placuta_rosie", "volum_total", "observatii"
         ]
     },
     {
         id: "BSTF",
-        label: "Buștean Fasonat",
+        label: "Buștean Fasonat", // Fallback label, use t('material.materialTypes.BSTF') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "nr_placuta_rosie", "lungime", "diametru", "volum_placuta_rosie", "volum_total", "observatii"
         ]
     },
     {
         id: "CHN",
-        label: "Cherestea Netivită",
+        label: "Cherestea Netivită", // Fallback label, use t('material.materialTypes.CHN') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "CHS",
-        label: "Cherestea Semitivită",
+        label: "Cherestea Semitivită", // Fallback label, use t('material.materialTypes.CHS') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "CHT",
-        label: "Cherestea Tivită",
+        label: "Cherestea Tivită", // Fallback label, use t('material.materialTypes.CHT') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "FRZ",
-        label: "Frize",
+        label: "Frize", // Fallback label, use t('material.materialTypes.FRZ') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "FRZR",
-        label: "Frize Rindeluite",
+        label: "Frize Rindeluite", // Fallback label, use t('material.materialTypes.FRZR') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "LEA",
-        label: "Leaturi",
+        label: "Leaturi", // Fallback label, use t('material.materialTypes.LEA') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     },
     {
         id: "PAN",
-        label: "Panouri",
+        label: "Panouri", // Fallback label, use t('material.materialTypes.PAN') for i18n
         fields: [
             "cod_unic_aviz", "data", "apv", "lat", "log", "volum_total", "nr_bucati", "volum_net_paletizat", "volum_brut_paletizat", "observatii"
         ]
     }
 ] as const;
 
-// Wood Species Configuration
+// Wood Species Configuration (with fallback Romanian labels)
 export const WOOD_SPECIES: readonly WoodSpeciesOption[] = [
-    { id: "STJ", label: "Stejar" },
-    { id: "ALB", label: "Stejar Alb" },
-    { id: "FRN", label: "Frasin" },
-    { id: "NUT", label: "Nuc" },
-    { id: "TEI", label: "Tei" },
-    { id: "FAG", label: "Fag" },
-    { id: "PLT", label: "Platin" },
-    { id: "PIN", label: "Pin" },
-    { id: "BRD", label: "Brad" },
-    { id: "MOL", label: "Molid" },
+    { id: "STJ", label: "Stejar" }, // Fallback label, use t('material.woodSpecies.STJ') for i18n
+    { id: "ALB", label: "Stejar Alb" }, // Fallback label, use t('material.woodSpecies.ALB') for i18n
+    { id: "FRN", label: "Frasin" }, // Fallback label, use t('material.woodSpecies.FRN') for i18n
+    { id: "NUT", label: "Nuc" }, // Fallback label, use t('material.woodSpecies.NUT') for i18n
+    { id: "TEI", label: "Tei" }, // Fallback label, use t('material.woodSpecies.TEI') for i18n
+    { id: "FAG", label: "Fag" }, // Fallback label, use t('material.woodSpecies.FAG') for i18n
+    { id: "PLT", label: "Platin" }, // Fallback label, use t('material.woodSpecies.PLT') for i18n
+    { id: "PIN", label: "Pin" }, // Fallback label, use t('material.woodSpecies.PIN') for i18n
+    { id: "BRD", label: "Brad" }, // Fallback label, use t('material.woodSpecies.BRD') for i18n
+    { id: "MOL", label: "Molid" }, // Fallback label, use t('material.woodSpecies.MOL') for i18n
 ] as const;
 
 // Optimized Maps for O(1) lookups
@@ -119,7 +126,13 @@ export const WOOD_SPECIES_REVERSE_MAP = new Map<string, string>(
 // Utility functions for fast lookups
 export const MaterialMappings = {
     // Material Type Functions
-    getMaterialTypeLabel: (id: string): string => {
+    getMaterialTypeLabel: (id: string, t?: TranslationFunction): string => {
+        if (t) {
+            const translatedLabel = t(`material.materialTypes.${id}`);
+            if (translatedLabel !== `material.materialTypes.${id}`) {
+                return translatedLabel;
+            }
+        }
         return MATERIAL_TYPE_MAP.get(id) || id;
     },
 
@@ -131,8 +144,14 @@ export const MaterialMappings = {
         return MATERIAL_TYPE_MAP.has(id);
     },
 
-    getMaterialTypeOptions: (): readonly MaterialTypeOption[] => {
-        return MATERIAL_TYPES;
+    getMaterialTypeOptions: (t?: TranslationFunction): MaterialTypeOption[] => {
+        if (t) {
+            return MATERIAL_TYPES.map(type => ({
+                ...type,
+                label: MaterialMappings.getMaterialTypeLabel(type.id, t)
+            }));
+        }
+        return [...MATERIAL_TYPES];
     },
 
     getFieldsForType: (id: string): string[] => {
@@ -141,7 +160,13 @@ export const MaterialMappings = {
     },
 
     // Wood Species Functions
-    getWoodSpeciesLabel: (id: string): string => {
+    getWoodSpeciesLabel: (id: string, t?: TranslationFunction): string => {
+        if (t) {
+            const translatedLabel = t(`material.woodSpecies.${id}`);
+            if (translatedLabel !== `material.woodSpecies.${id}`) {
+                return translatedLabel;
+            }
+        }
         return WOOD_SPECIES_MAP.get(id) || id;
     },
 
@@ -153,22 +178,30 @@ export const MaterialMappings = {
         return WOOD_SPECIES_MAP.has(id);
     },
 
-    getWoodSpeciesOptions: (): readonly WoodSpeciesOption[] => {
-        return WOOD_SPECIES;
+    getWoodSpeciesOptions: (t?: TranslationFunction): WoodSpeciesOption[] => {
+        if (t) {
+            return WOOD_SPECIES.map(species => ({
+                ...species,
+                label: MaterialMappings.getWoodSpeciesLabel(species.id, t)
+            }));
+        }
+        return [...WOOD_SPECIES];
     },
 
     // Search Functions
-    searchMaterialTypes: (query: string): MaterialTypeOption[] => {
+    searchMaterialTypes: (query: string, t?: TranslationFunction): MaterialTypeOption[] => {
         const lowercaseQuery = query.toLowerCase();
-        return MATERIAL_TYPES.filter(item =>
+        const options = MaterialMappings.getMaterialTypeOptions(t);
+        return options.filter(item =>
             item.id.toLowerCase().includes(lowercaseQuery) ||
             item.label.toLowerCase().includes(lowercaseQuery)
         );
     },
 
-    searchWoodSpecies: (query: string): WoodSpeciesOption[] => {
+    searchWoodSpecies: (query: string, t?: TranslationFunction): WoodSpeciesOption[] => {
         const lowercaseQuery = query.toLowerCase();
-        return WOOD_SPECIES.filter(item =>
+        const options = MaterialMappings.getWoodSpeciesOptions(t);
+        return options.filter(item =>
             item.id.toLowerCase().includes(lowercaseQuery) ||
             item.label.toLowerCase().includes(lowercaseQuery)
         );

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { MaterialMappings } from '../../config/materialMappings';
+import useMaterialMappings from '../../hooks/useMaterialMappings';
 
 interface MaterialNodeData {
     label: string;
@@ -18,6 +18,7 @@ interface MaterialNodeData {
 
 const MaterialNode: React.FC<NodeProps<MaterialNodeData>> = ({ data, selected }) => {
     const isMain = data.isMain;
+    const materialMappings = useMaterialMappings();
 
     return (
         <div
@@ -89,7 +90,7 @@ const MaterialNode: React.FC<NodeProps<MaterialNodeData>> = ({ data, selected })
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ opacity: 0.8, fontSize: '12px' }}>Specie:</span>
                             <span style={{ fontSize: '12px', fontWeight: '500' }}>
-                                {MaterialMappings.getWoodSpeciesLabel(data.specie)}
+                                {materialMappings.getWoodSpeciesLabel(data.specie)}
                             </span>
                         </div>
                     )}

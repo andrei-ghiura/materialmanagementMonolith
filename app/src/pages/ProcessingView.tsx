@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useUiState } from '../components/ui/UiStateContext';
 import { Container, Form, Button, Modal, ListGroup, Alert, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaCheck, FaQrcode, FaSave } from 'react-icons/fa';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -7,6 +8,7 @@ import { getAll, getById, processMaterials as processAPI } from '../api/material
 import { MaterialMappings } from '../config/materialMappings';
 import MaterialItem from '../components/MaterialItem';
 import apiClient from '../api/apiClient';
+import useI18n from '../hooks/useI18n';
 
 // Processing type interface (matches backend)
 interface ProcessingType {
@@ -39,7 +41,9 @@ Include transaction support to ensure all operations succeed or fail together.
 */
 
 const ProcessingView: React.FC = () => {
-    const [alert, setAlert] = useState<{ header: string; message: string; variant?: string; onClose?: () => void } | null>(null);
+    const { t } = useI18n();
+    const { setFooterActions } = useUiState();
+    const [alert, setAlert] = useState<{ header: string; message: string; params?: Record<string, unknown>; variant?: string; onClose?: () => void } | null>(null);
     const [navigateHome, setNavigateHome] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
     const [showMaterialSelectionModal, setShowMaterialSelectionModal] = useState(false);
@@ -53,10 +57,17 @@ const ProcessingView: React.FC = () => {
         count: 1,
         type: '',
         specie: '',
-        processingType: '' // Added processing type
+        processingType: ''
     });
     const [selectedProcessingType, setSelectedProcessingType] = useState<ProcessingType | null>(null);
     const [allProcessingTypes, setAllProcessingTypes] = useState<ProcessingType[]>([]);
+    // Wizard step state
+    const [currentStep, setCurrentStep] = useState(0); // 0: type, 1: materials, 2: config
+    const steps = [
+        t('processing.stepType'),
+        t('processing.stepMaterials'),
+        t('processing.stepConfig')
+    ];
 
     // Helper functions to work with processing types
     const getProcessingType = useCallback((id: string): ProcessingType | undefined => {
@@ -72,6 +83,47 @@ const ProcessingView: React.FC = () => {
             console.error('Failed to load processing types');
         }
     };
+    useEffect(() => {
+        setFooterActions({
+            actionsLeft: (
+                <Button
+                    variant="secondary"
+                    disabled={currentStep === 0}
+                    onClick={() => setCurrentStep(s => Math.max(0, s - 1))}
+                >{t('processing.back')}</Button>
+            ),
+            actionsRight: (
+                currentStep < steps.length - 1 ? (
+                    <Button
+                        variant="primary"
+                        onClick={() => {
+                            // Step validation
+                            if (currentStep === 0 && !outputConfig.processingType) {
+                                setAlert({ header: 'alerts.selectTypeHeader', message: 'alerts.selectTypeMessage', variant: 'warning' });
+                                return;
+                            }
+                            if (currentStep === 1 && selectedMaterials.length === 0) {
+                                setAlert({ header: 'alerts.addMaterialsHeader', message: 'alerts.addMaterialsMessage', variant: 'warning' });
+                                return;
+                            }
+                            setAlert(null);
+                            setCurrentStep(s => Math.min(steps.length - 1, s + 1));
+                        }}
+                    >{t('processing.next')}</Button>
+                ) :
+                    (<Button
+                        variant="success"
+                        onClick={processMaterials}
+                        disabled={selectedMaterials.length === 0 || isProcessing || !outputConfig.processingType}
+                        data-cy="process-btn"
+                    >
+                        <FaSave className="me-2" />
+                        {isProcessing ? t('processing.processing') : t('processing.processMaterials')}
+                    </Button>)
+            )
+        });
+        return () => setFooterActions(null);
+    }, [currentStep, outputConfig.processingType, selectedMaterials, steps.length, t]);
 
     // Track available wood species from selected materials
     const availableWoodSpecies = selectedMaterials.reduce((species, material) => {
@@ -108,8 +160,9 @@ const ProcessingView: React.FC = () => {
                 setSelectedMaterials(compatibleMaterials);
 
                 setAlert({
-                    header: 'Materiale incompatibile',
-                    message: `${incompatibleMaterials.length} materiale au fost eliminate deoarece nu sunt compatibile cu tipul de procesare selectat.`,
+                    header: 'processing.incompatibleMaterialsHeader',
+                    message: 'processing.incompatibleMaterialsMessage',
+                    params: { count: incompatibleMaterials.length },
                     variant: 'warning',
                 });
             }
@@ -121,8 +174,8 @@ const ProcessingView: React.FC = () => {
 
                 if (!allSameType) {
                     setAlert({
-                        header: 'Materiale incompatibile',
-                        message: 'Toate materialele selectate trebuie să fie de același tip.',
+                        header: 'processing.incompatibleTypesHeader',
+                        message: 'processing.incompatibleTypesMessage',
                         variant: 'warning',
                     });
                 }
@@ -190,12 +243,7 @@ const ProcessingView: React.FC = () => {
             setAllMaterials(materials);
             setFilteredMaterials(materials);
         } catch {
-            console.error('Failed to load materials.');
-            setAlert({
-                header: 'Eroare',
-                message: 'Nu s-au putut încărca materialele.',
-                variant: 'danger',
-            });
+            setAlert({ header: 'processing.loadMaterialsHeader', message: 'processing.loadMaterialsMessage', variant: 'danger' });
         }
     };
 
@@ -203,11 +251,11 @@ const ProcessingView: React.FC = () => {
         setMaterialInput('');
         try {
             if (!selectedProcessingType) {
-                setAlert({ header: 'Selectați tipul de procesare', message: 'Vă rugăm să selectați mai întâi tipul de procesare înainte de a adăuga materiale.', variant: 'warning' });
+                setAlert({ header: 'processing.selectTypeHeader', message: 'processing.selectTypeMessage', variant: 'warning' });
                 return;
             }
             if (selectedMaterials.some(m => m._id === id || m.humanId === id)) {
-                setAlert({ header: 'Material deja adăugat', message: 'Acest material este deja în lista de procesare.', variant: 'info' });
+                setAlert({ header: 'processing.materialAlreadyAddedHeader', message: 'processing.materialAlreadyAddedMessage', variant: 'info' });
                 return;
             }
             let material = allMaterials.find(m => m.id === id || m.humanId === id);
@@ -216,20 +264,19 @@ const ProcessingView: React.FC = () => {
             }
             if (material) {
                 if (!selectedProcessingType.sourceTypes.includes(material.type)) {
-                    setAlert({ header: 'Material incompatibil', message: `Acest material de tip "${material.type}" nu poate fi procesat cu "${selectedProcessingType.label}". Tipurile acceptate sunt: ${selectedProcessingType.sourceTypes.join(', ')}.`, variant: 'danger' });
+                    setAlert({ header: 'processing.materialIncompatibleHeader', message: 'processing.materialIncompatibleMessage', params: { type: material.type, processing: selectedProcessingType.label, accepted: selectedProcessingType.sourceTypes.join(', ') }, variant: 'danger' });
                     return;
                 }
                 if (selectedMaterials.length > 0 && selectedMaterials[0].type !== material.type) {
-                    setAlert({ header: 'Tipuri diferite de materiale', message: 'Toate materialele selectate trebuie să fie de același tip.', variant: 'danger' });
+                    setAlert({ header: 'processing.differentTypesHeader', message: 'processing.differentTypesMessage', variant: 'danger' });
                     return;
                 }
                 setSelectedMaterials(prev => [...prev, material]);
             } else {
-                setAlert({ header: 'Material inexistent', message: `Materialul cu ID-ul ${id} nu există.`, variant: 'danger' });
+                setAlert({ header: t('messages.materialNotFound'), message: t('messages.materialNotFoundMessage'), variant: 'danger' });
             }
-        } catch (error) {
-            console.error('Error adding material:', error);
-            setAlert({ header: 'Eroare', message: 'Nu s-a putut adăuga materialul.', variant: 'danger' });
+        } catch {
+            setAlert({ header: 'processing.addMaterialErrorHeader', message: 'processing.addMaterialErrorMessage', variant: 'danger' });
         }
     };
 
@@ -249,23 +296,23 @@ const ProcessingView: React.FC = () => {
 
     const processMaterials = async () => {
         if (selectedMaterials.length === 0) {
-            setAlert({ header: 'Niciun material selectat', message: 'Selectați cel puțin un material pentru procesare.', variant: 'warning' });
+            setAlert({ header: 'processing.noMaterialsSelectedHeader', message: 'processing.noMaterialsSelectedMessage', variant: 'warning' });
             return;
         }
         if (!outputConfig.processingType) {
-            setAlert({ header: 'Configurare incompletă', message: 'Selectați tipul de procesare.', variant: 'warning' });
+            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigTypeMessage', variant: 'warning' });
             return;
         }
         if (!outputConfig.type) {
-            setAlert({ header: 'Configurare incompletă', message: 'Selectați tipul materialului rezultat.', variant: 'warning' });
+            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigTypeResultMessage', variant: 'warning' });
             return;
         }
         if (!outputConfig.specie) {
-            setAlert({ header: 'Configurare incompletă', message: 'Selectați specia lemnului pentru materialul rezultat.', variant: 'warning' });
+            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigSpecieMessage', variant: 'warning' });
             return;
         }
         if (!availableWoodSpecies.includes(outputConfig.specie)) {
-            setAlert({ header: 'Specie invalidă', message: 'Specia selectată nu este prezentă în materialele sursă.', variant: 'danger' });
+            setAlert({ header: 'processing.invalidSpecieHeader', message: 'processing.invalidSpecieMessage', variant: 'danger' });
             return;
         }
         setIsProcessing(true);
@@ -279,8 +326,9 @@ const ProcessingView: React.FC = () => {
             };
             const result = await processAPI(sourceIds, apiConfig);
             setAlert({
-                header: 'Succes',
-                message: `${result.message}`,
+                header: 'processing.successHeader',
+                message: 'processing.successMessage',
+                params: { message: result.message },
                 variant: 'success',
                 onClose: () => {
                     setSelectedMaterials([]);
@@ -288,7 +336,7 @@ const ProcessingView: React.FC = () => {
                 }
             });
         } catch {
-            setAlert({ header: 'Eroare de procesare', message: 'Nu s-au putut procesa materialele.', variant: 'danger' });
+            setAlert({ header: 'processing.processErrorHeader', message: 'processing.processErrorMessage', variant: 'danger' });
         } finally {
             setIsProcessing(false);
         }
@@ -315,61 +363,71 @@ const ProcessingView: React.FC = () => {
     }, [navigateHome]);
 
     return (
-        <Container className="py-4">
-            <h2 className="mb-3">Procesare Materiale</h2>
+        <Container>
+            {/* Wizard Progress Bar */}
+            <div className="mb-4">
+                <div className="d-flex align-items-center">
+                    {steps.map((step, idx) => (
+                        <div key={step} className={`flex-grow-1 text-center ${idx === currentStep ? 'fw-bold text-primary' : 'text-muted'}`}
+                            style={{ borderBottom: idx === currentStep ? '2px solid #0d6efd' : '1px solid #ccc', paddingBottom: 4 }}>
+                            {t('processing.step', { number: idx + 1, name: step })}
+                        </div>
+                    ))}
+                </div>
+            </div>
 
             {alert && (
                 <Alert variant={alert.variant || 'info'} dismissible onClose={() => { if (alert.onClose) alert.onClose(); setAlert(null); }}>
-                    <strong>{alert.header}</strong>
-                    <div>{alert.message}</div>
+                    <strong>{t(alert.header)}</strong>
+                    <div>{t(alert.message, alert.params)}</div>
                 </Alert>
             )}
 
             {/* Step 1: Processing Type Selection */}
-            <h5 className="mt-3">Pasul 1: Selectează Tipul de Procesare</h5>
-            <Form.Group className="mb-3">
-                <Form.Label>Tip procesare</Form.Label>
-                <Form.Select
-                    value={outputConfig.processingType}
-                    onChange={e => {
-                        const processingTypeId = e.target.value;
-                        setOutputConfig({ ...outputConfig, processingType: processingTypeId });
-                        if (processingTypeId !== outputConfig.processingType) {
-                            setSelectedMaterials([]);
-                        }
-                    }}
-                >
-                    <option value="">Selectează tipul de procesare</option>
-                    {allProcessingTypes.map(type => (
-                        <option key={type.id} value={type.id}>{type.label}</option>
-                    ))}
-                </Form.Select>
-                {allProcessingTypes.length === 0 && (
-                    <div className="text-muted mt-2">Se încarcă tipurile de procesare...</div>
-                )}
-            </Form.Group>
-
-            {selectedProcessingType && (
-                <Alert variant="secondary">
-                    <div><strong>Descriere:</strong> {selectedProcessingType.description}</div>
-                    <div>
-                        <strong>Tipuri materiale acceptate:</strong> {selectedProcessingType.sourceTypes.map(type => MaterialMappings.getMaterialTypeLabel(type)).join(', ')} → {selectedProcessingType.resultType === 'same' ? 'Același ca sursa' : MaterialMappings.getMaterialTypeLabel(selectedProcessingType.resultType)}
-                    </div>
-                </Alert>
+            {currentStep === 0 && (
+                <>
+                    {allProcessingTypes.length === 0 ? (
+                        <div className="text-muted mt-2">{t('processing.loadingTypes')}</div>
+                    ) : (
+                        <ListGroup>
+                            {allProcessingTypes.map(type => (
+                                <ListGroup.Item
+                                    key={type.id}
+                                    action
+                                    active={outputConfig.processingType === type.id}
+                                    onClick={() => {
+                                        setOutputConfig({ ...outputConfig, processingType: type.id });
+                                        if (type.id !== outputConfig.processingType) {
+                                            setSelectedMaterials([]);
+                                        }
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    <div className="d-flex flex-column">
+                                        <h2 className="fw-bold">{type.label}</h2>
+                                        <div>
+                                            {type.sourceTypes.map(tid => MaterialMappings.getMaterialTypeLabel(tid)).join(', ')}
+                                            {' '}→{' '}
+                                            {type.resultType === 'same' ? t('processing.sameAsSource') : MaterialMappings.getMaterialTypeLabel(type.resultType)}
+                                        </div>
+                                    </div>
+                                </ListGroup.Item>
+                            ))}
+                        </ListGroup>
+                    )}
+                </>
             )}
 
             {/* Step 2: Material Selection */}
-            {selectedProcessingType && (
+            {currentStep === 1 && selectedProcessingType && (
                 <>
-                    <h5 className="mt-4">Pasul 2: Adaugă Materiale</h5>
                     <Form.Group className="mb-2">
-                        <Form.Label>Adaugă Material (ID sau Cod)</Form.Label>
                         <InputGroup>
                             <Form.Control
                                 value={materialInput}
                                 onChange={e => setMaterialInput(e.target.value)}
                                 onKeyPress={handleInputKeyPress}
-                                placeholder="Introdu ID-ul materialului"
+                                placeholder={t('processing.addMaterialPlaceholder')}
                             />
                             <Button variant="primary" onClick={() => setShowMaterialSelectionModal(true)} data-cy="add-material-by-id-btn">
                                 <FaPlus />
@@ -380,17 +438,11 @@ const ProcessingView: React.FC = () => {
                         </InputGroup>
                     </Form.Group>
                     <div className="text-muted mb-2">
-                        <strong>Restricție:</strong> Doar materialele de tip {selectedProcessingType.sourceTypes.join(' sau ')} pot fi procesate cu această opțiune.
+                        {selectedProcessingType.sourceTypes.map(tid => MaterialMappings.getMaterialTypeLabel(tid)).join(', ')}
                     </div>
-                </>
-            )}
-
-            {/* Selected Materials Section */}
-            {selectedProcessingType && (
-                <>
-                    <h5 className="mt-3">Materiale Selectate</h5>
+                    <h5 className="mt-3">{t('processing.selectedMaterialsTitle')}</h5>
                     {selectedMaterials.length === 0 ? (
-                        <div className="text-center text-muted">Niciun material selectat</div>
+                        <div className="text-center text-muted">{t('processing.noMaterialsSelected')}</div>
                     ) : (
                         <ListGroup className="mb-3">
                             {selectedMaterials.map((material, index) => (
@@ -409,11 +461,11 @@ const ProcessingView: React.FC = () => {
             )}
 
             {/* Step 3: Output Configuration */}
-            {selectedProcessingType && selectedMaterials.length > 0 && (
+            {currentStep === 2 && selectedProcessingType && selectedMaterials.length > 0 && (
                 <>
-                    <h5 className="mt-4">Pasul 3: Configurare Rezultat</h5>
+                    <h5 className="mt-4">{t('processing.stepConfigTitle')}</h5>
                     <Form.Group className="mb-3">
-                        <Form.Label>Număr de materiale rezultate</Form.Label>
+                        <Form.Label>{t('processing.resultCountLabel')}</Form.Label>
                         <Form.Control
                             type="number"
                             min={1}
@@ -422,29 +474,29 @@ const ProcessingView: React.FC = () => {
                         />
                     </Form.Group>
                     <Form.Group className="mb-3">
-                        <Form.Label>Tip material</Form.Label>
+                        <Form.Label>{t('processing.resultTypeLabel')}</Form.Label>
                         <Form.Select
                             value={outputConfig.type}
                             disabled={selectedProcessingType !== null}
                             onChange={e => setOutputConfig({ ...outputConfig, type: e.target.value })}
                         >
-                            <option value="">Selectează tipul</option>
+                            <option value="">{t('processing.resultTypeSelect')}</option>
                             {MaterialMappings.getMaterialTypeOptions().map(type => (
                                 <option key={type.id} value={type.id}>{type.label}</option>
                             ))}
                         </Form.Select>
                         {selectedProcessingType && (
-                            <div className="text-muted mt-1">Tipul este determinat automat de procesarea selectată</div>
+                            <div className="text-muted mt-1">{t('processing.resultTypeAuto')}</div>
                         )}
                     </Form.Group>
                     <Form.Group className="mb-3">
-                        <Form.Label>Specie lemn</Form.Label>
+                        <Form.Label>{t('processing.resultSpecieLabel')}</Form.Label>
                         <Form.Select
                             value={outputConfig.specie}
                             disabled={availableWoodSpecies.length <= 1}
                             onChange={e => setOutputConfig({ ...outputConfig, specie: e.target.value })}
                         >
-                            <option value="">Selectează specia</option>
+                            <option value="">{t('processing.resultSpecieSelect')}</option>
                             {MaterialMappings.getWoodSpeciesOptions()
                                 .filter(specie => availableWoodSpecies.includes(specie.id))
                                 .map(specie => (
@@ -452,27 +504,19 @@ const ProcessingView: React.FC = () => {
                                 ))}
                         </Form.Select>
                         {availableWoodSpecies.length === 0 && (
-                            <div className="text-muted mt-1">Adăugați materiale pentru a selecta specia</div>
+                            <div className="text-muted mt-1">{t('processing.addMaterialsForSpecie')}</div>
                         )}
                     </Form.Group>
-                    <div className="d-grid gap-2">
-                        <Button
-                            variant="success"
-                            onClick={processMaterials}
-                            disabled={selectedMaterials.length === 0 || isProcessing || !outputConfig.processingType}
-                            data-cy="process-btn"
-                        >
-                            <FaSave className="me-2" />
-                            {isProcessing ? 'Se procesează...' : 'Procesează Materialele'}
-                        </Button>
-                    </div>
+
                 </>
             )}
+
+            {/* ...existing code... */}
 
             {/* QR Scanner Modal */}
             <Modal show={showQrModal} onHide={closeQrModal} centered size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>Scanare QR</Modal.Title>
+                    <Modal.Title>{t('processing.qrModalTitle')}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 350 }}>
@@ -488,18 +532,18 @@ const ProcessingView: React.FC = () => {
             {/* Material Selection Modal */}
             <Modal show={showMaterialSelectionModal} onHide={() => setShowMaterialSelectionModal(false)} size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>Selectează Material</Modal.Title>
+                    <Modal.Title>{t('processing.selectMaterial')}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form.Group className="mb-3">
                         <Form.Control
-                            placeholder="Caută material..."
+                            placeholder={t('processing.searchMaterial')}
                             value={materialSearchTerm}
                             onChange={e => setMaterialSearchTerm(e.target.value)}
                         />
                     </Form.Group>
                     {filteredMaterials.length === 0 ? (
-                        <div className="text-center text-muted">Nu s-au găsit materiale</div>
+                        <div className="text-center text-muted">{t('processing.noMaterialsFound')}</div>
                     ) : (
                         <ListGroup>
                             {filteredMaterials.map((material) => (
@@ -527,6 +571,10 @@ const ProcessingView: React.FC = () => {
             </Modal>
         </Container>
     );
-};
+}
+
+// Set footer actions for navigation
+// (must be inside the component, but before return)
+// Move this above the return statement
 
 export default ProcessingView;

@@ -5,10 +5,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { deleteMaterial, save, update } from "../api/materials";
 import { Directory, Filesystem } from "@capacitor/filesystem";
 import { Capacitor } from '@capacitor/core';
-import labels from '../labels';
+import useI18n from '../hooks/useI18n';
+import useMaterialMappings from '../hooks/useMaterialMappings';
 import { Material } from "../types";
 import { makeLabelCanvas } from "../components/makeLabelCanvas";
-import { MaterialMappings } from "../config/materialMappings";
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
@@ -24,6 +24,8 @@ const MaterialView = () => {
 
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const { t } = useI18n();
+    const materialMappings = useMaterialMappings();
     // Alert state for react-bootstrap Modal
     const [alert, setAlert] = useState<{ header: string, message: string, buttons: { text: string }[], onDidDismiss?: () => void } | null>(null);
 
@@ -73,6 +75,7 @@ const MaterialView = () => {
         nr_bucati: '',
         observatii: '',
         componente: [],
+        deleted: false, // <-- add deleted flag
     });
     const isNew = !id;
     // Fetch material from backend if id is present
@@ -184,9 +187,9 @@ const MaterialView = () => {
                 recursive: true,
             });
             setAlert({
-                header: 'Succes',
-                message: 'QR code saved successfully!',
-                buttons: [{ text: 'OK' }]
+                header: t('common.success'),
+                message: t('material.actions.saveSuccess'),
+                buttons: [{ text: t('common.close') }]
             });
         }
     };
@@ -195,17 +198,17 @@ const MaterialView = () => {
         // Validate required fields
         if (!material.type) {
             setAlert({
-                header: 'Câmp obligatoriu',
-                message: 'Selectați tipul materialului.',
-                buttons: [{ text: 'OK' }]
+                header: t('material.actions.requiredField'),
+                message: t('material.actions.typeRequired'),
+                buttons: [{ text: t('common.close') }]
             });
             return;
         }
         if (!material.specie) {
             setAlert({
-                header: 'Câmp obligatoriu',
-                message: 'Selectați specia lemnului.',
-                buttons: [{ text: 'OK' }]
+                header: t('material.actions.requiredField'),
+                message: t('material.actions.speciesRequired'),
+                buttons: [{ text: t('common.close') }]
             });
             return;
         }
@@ -224,9 +227,9 @@ const MaterialView = () => {
                 nav();
             } else {
                 setAlert({
-                    header: 'Succes',
-                    message: `Material ${isNew ? 'creat' : 'actualizat'} cu succes!`,
-                    buttons: [{ text: 'OK' }],
+                    header: t('common.success'),
+                    message: isNew ? t('material.actions.createSuccess') : t('material.actions.updateSuccess'),
+                    buttons: [{ text: t('common.close') }],
                     onDidDismiss: () => {
                         navigate('/');
                     }
@@ -235,12 +238,12 @@ const MaterialView = () => {
         } catch (error) {
             console.error('Failed to save material:', error);
             setAlert({
-                header: 'Eroare',
-                message: `Nu s-a putut ${isNew ? 'crea' : 'actualiza'} materialul.`,
-                buttons: [{ text: 'OK' }]
+                header: t('common.error'),
+                message: isNew ? t('material.actions.createError') : t('material.actions.updateError'),
+                buttons: [{ text: t('common.close') }]
             });
         }
-    }, [material, isNew, componente, isMaterial, id, pendingNavigation, navigate]);
+    }, [material, isNew, componente, isMaterial, id, pendingNavigation, navigate, t]);
 
     const handleDownload = () => {
         if (labelCanvasRef.current) {
@@ -280,7 +283,7 @@ const MaterialView = () => {
 
     // QR code scanning for adding components is disabled
     // Field visibility logic based on material type
-    const visibleFields = MaterialMappings.getFieldsForType(material.type);
+    const visibleFields = materialMappings.getFieldsForType(material.type);
     const isFieldVisible = (field: string) => visibleFields.includes(field);
 
     const { setFooterActions } = useUiState();
@@ -294,36 +297,38 @@ const MaterialView = () => {
             style={{ fontSize: 20, textDecoration: 'none' }}
             data-cy="footer-back-btn"
         >
-            Anulează
+            {t('common.cancel')}
         </Button>
-    ), [handleNav, navigate]);
+    ), [handleNav, navigate, t]);
 
     const actionsRight = useMemo(() => (
         <>
             {!isNew && (
                 <Button className="btn-negative me-2" onClick={handleDelete} size="sm" data-cy="delete-material-btn">
                     <span className="me-1" role="img" aria-label="delete">🗑️</span>
-                    Șterge
+                    {t('common.delete')}
                 </Button>
             )}
             <Button className="btn-default me-2" onClick={() => handleNav(() => navigate(`/material/${material._id}/ancestors`))} size="sm" data-cy="export-components-btn">
-                Export
+                {t('material.actions.exportLabel')}
             </Button>
             {!isNew && (
                 <Button className="btn-info me-2" onClick={() => handleNav(() => navigate(`/flow/${material._id}`))} size="sm" data-cy="show-flow-btn">
-                    Flow
+                    {t('navigation.flow')}
                 </Button>
             )}
-            <Button className="btn-success  me-2" onClick={handleConfirm} data-cy="save-material-btn">
-                <b>{isNew ? labels.adauga : labels.salveaza}</b>
+            <Button className="btn-success  me-2" onClick={handleConfirm} data-cy="save-material-btn" disabled={material.deleted}>
+                <b>{isNew ? t('common.add') : t('common.save')}</b>
             </Button>
         </>
-    ), [isNew, handleDelete, handleConfirm, handleNav, navigate, material._id]);
+    ), [isNew, handleDelete, handleConfirm, handleNav, navigate, material._id, t]);
 
     useEffect(() => {
         setFooterActions({ actionsLeft, actionsRight });
         return () => setFooterActions(null);
     }, [actionsLeft, actionsRight, setFooterActions]);
+
+    const isReadonly = Boolean(material.deleted);
 
     if (!material) return null;
 
@@ -342,17 +347,17 @@ const MaterialView = () => {
                                             {/* Material Type */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.type} <span className="text-danger">*</span></Form.Label>
+                                                    <Form.Label>{t('material.materialType')} <span className="text-danger">*</span></Form.Label>
                                                     <Form.Select
                                                         required
                                                         value={material.type}
                                                         onChange={ev => changeMaterial('type', ev.target.value)}
                                                         data-cy="material-type-select"
                                                         className={!material.type ? 'is-invalid' : ''}
-                                                        disabled={!isNew}
+                                                        disabled={!isNew || isReadonly}
                                                     >
-                                                        <option value="">Selectează tipul</option>
-                                                        {MaterialMappings.getMaterialTypeOptions().map(type => (
+                                                        <option value="">{t('material.selectType')}</option>
+                                                        {materialMappings.getMaterialTypeOptions().map(type => (
                                                             <option key={type.id} value={type.id} data-cy={`material-type-option-${type.id}`}>{type.label}</option>
                                                         ))}
                                                     </Form.Select>
@@ -361,17 +366,17 @@ const MaterialView = () => {
                                             {/* Wood Species */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.specie} <span className="text-danger">*</span></Form.Label>
+                                                    <Form.Label>{t('material.species')} <span className="text-danger">*</span></Form.Label>
                                                     <Form.Select
                                                         required
                                                         value={material.specie}
                                                         onChange={ev => changeMaterial('specie', ev.target.value)}
                                                         data-cy="material-specie-select"
                                                         className={!material.specie ? 'is-invalid' : ''}
-                                                        disabled={!isNew}
+                                                        disabled={!isNew || isReadonly}
                                                     >
-                                                        <option value="">Selectează specia</option>
-                                                        {MaterialMappings.getWoodSpeciesOptions().map(type => (
+                                                        <option value="">{t('material.selectSpecies')}</option>
+                                                        {materialMappings.getWoodSpeciesOptions().map(type => (
                                                             <option key={type.id} value={type.id} data-cy={`material-specie-option-${type.id}`}>{type.label}</option>
                                                         ))}
                                                     </Form.Select>
@@ -380,39 +385,39 @@ const MaterialView = () => {
                                             {/* cod_unic_aviz */}
                                             <Col md={12} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.cod_unic_aviz}</Form.Label>
-                                                    <Form.Control data-cy="input-cod_unic_aviz" type="text" value={material.cod_unic_aviz} onChange={ev => changeMaterial('cod_unic_aviz', ev.target.value)} disabled={!isNew} />
+                                                    <Form.Label>{t('material.uniqueCode')}</Form.Label>
+                                                    <Form.Control data-cy="input-cod_unic_aviz" type="text" value={material.cod_unic_aviz} onChange={ev => changeMaterial('cod_unic_aviz', ev.target.value)} disabled={!isNew || isReadonly} />
                                                 </Form.Group>
                                             </Col>
                                             {/* data */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.data}</Form.Label>
-                                                    <Form.Control data-cy="input-data" type="date" value={material.data} onChange={ev => changeMaterial('data', ev.target.value)} />
+                                                    <Form.Label>{t('material.date')}</Form.Label>
+                                                    <Form.Control data-cy="input-data" type="date" value={material.data} onChange={ev => changeMaterial('data', ev.target.value)} disabled={isReadonly} />
                                                 </Form.Group>
                                             </Col>
                                             {/* apv */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.apv}</Form.Label>
-                                                    <Form.Control data-cy="input-apv" type="text" value={material.apv} onChange={ev => changeMaterial('apv', ev.target.value)} disabled={!isNew} />
+                                                    <Form.Label>{t('material.apv')}</Form.Label>
+                                                    <Form.Control data-cy="input-apv" type="text" value={material.apv} onChange={ev => changeMaterial('apv', ev.target.value)} disabled={!isNew || isReadonly} />
                                                 </Form.Group>
                                             </Col>
                                             {/* nr_placuta_rosie */}
                                             {isFieldVisible('nr_placuta_rosie') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.nr_placuta_rosie}</Form.Label>
-                                                        <Form.Control data-cy="input-nr_placuta_rosie" type="number" value={material.nr_placuta_rosie} onChange={ev => changeMaterial('nr_placuta_rosie', ev.target.value)} />
+                                                        <Form.Label>{t('material.redPlateNumber')}</Form.Label>
+                                                        <Form.Control data-cy="input-nr_placuta_rosie" type="number" value={material.nr_placuta_rosie} onChange={ev => changeMaterial('nr_placuta_rosie', ev.target.value)} disabled={isReadonly} />
                                                     </Form.Group>
                                                 </Col>
                                             )}
                                             {/* lat */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.lat}</Form.Label>
+                                                    <Form.Label>{t('material.latitude')}</Form.Label>
                                                     <InputGroup>
-                                                        <Form.Control data-cy="input-lat" type="text" value={material.lat} onChange={ev => changeMaterial('lat', ev.target.value)} disabled={!isNew} />
+                                                        <Form.Control data-cy="input-lat" type="text" value={material.lat} onChange={ev => changeMaterial('lat', ev.target.value)} disabled={!isNew || isReadonly} />
                                                         <InputGroup.Text>°</InputGroup.Text>
                                                     </InputGroup>
                                                 </Form.Group>
@@ -420,9 +425,9 @@ const MaterialView = () => {
                                             {/* log */}
                                             <Col md={6} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.log}</Form.Label>
+                                                    <Form.Label>{t('material.longitude')}</Form.Label>
                                                     <InputGroup>
-                                                        <Form.Control data-cy="input-log" type="text" value={material.log} onChange={ev => changeMaterial('log', ev.target.value)} disabled={!isNew} />
+                                                        <Form.Control data-cy="input-log" type="text" value={material.log} onChange={ev => changeMaterial('log', ev.target.value)} disabled={!isNew || isReadonly} />
                                                         <InputGroup.Text>°</InputGroup.Text>
                                                     </InputGroup>
                                                 </Form.Group>
@@ -431,9 +436,9 @@ const MaterialView = () => {
                                             {isFieldVisible('lungime') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.lungime}</Form.Label>
+                                                        <Form.Label>{t('material.length')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-lungime" type="number" value={material.lungime} onChange={ev => changeMaterial('lungime', ev.target.value)} />
+                                                            <Form.Control data-cy="input-lungime" type="number" value={material.lungime} onChange={ev => changeMaterial('lungime', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>cm</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -443,9 +448,9 @@ const MaterialView = () => {
                                             {isFieldVisible('diametru') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.diametru}</Form.Label>
+                                                        <Form.Label>{t('material.diameter')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-diametru" type="number" value={material.diametru} onChange={ev => changeMaterial('diametru', ev.target.value)} />
+                                                            <Form.Control data-cy="input-diametru" type="number" value={material.diametru} onChange={ev => changeMaterial('diametru', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>cm</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -455,9 +460,9 @@ const MaterialView = () => {
                                             {isFieldVisible('volum_placuta_rosie') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.volum_placuta_rosie}</Form.Label>
+                                                        <Form.Label>{t('material.redPlateVolume')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-volum_placuta_rosie" type="number" value={material.volum_placuta_rosie} onChange={ev => changeMaterial('volum_placuta_rosie', ev.target.value)} />
+                                                            <Form.Control data-cy="input-volum_placuta_rosie" type="number" value={material.volum_placuta_rosie} onChange={ev => changeMaterial('volum_placuta_rosie', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>m³</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -467,9 +472,9 @@ const MaterialView = () => {
                                             {isFieldVisible('volum_total') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.volum_total}</Form.Label>
+                                                        <Form.Label>{t('material.totalVolume')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-volum_total" type="number" value={material.volum_total} onChange={ev => changeMaterial('volum_total', ev.target.value)} />
+                                                            <Form.Control data-cy="input-volum_total" type="number" value={material.volum_total} onChange={ev => changeMaterial('volum_total', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>m³</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -479,8 +484,8 @@ const MaterialView = () => {
                                             {isFieldVisible('nr_bucati') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.nr_bucati}</Form.Label>
-                                                        <Form.Control data-cy="input-nr_bucati" type="number" value={material.nr_bucati} onChange={ev => changeMaterial('nr_bucati', ev.target.value)} />
+                                                        <Form.Label>{t('material.pieces')}</Form.Label>
+                                                        <Form.Control data-cy="input-nr_bucati" type="number" value={material.nr_bucati} onChange={ev => changeMaterial('nr_bucati', ev.target.value)} disabled={isReadonly} />
                                                     </Form.Group>
                                                 </Col>
                                             )}
@@ -488,9 +493,9 @@ const MaterialView = () => {
                                             {isFieldVisible('volum_net_paletizat') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.volum_net_paletizat}</Form.Label>
+                                                        <Form.Label>{t('material.netPalletizedVolume')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-volum_net_paletizat" type="number" value={material.volum_net_paletizat} onChange={ev => changeMaterial('volum_net_paletizat', ev.target.value)} />
+                                                            <Form.Control data-cy="input-volum_net_paletizat" type="number" value={material.volum_net_paletizat} onChange={ev => changeMaterial('volum_net_paletizat', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>m³</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -500,9 +505,9 @@ const MaterialView = () => {
                                             {isFieldVisible('volum_brut_paletizat') && (
                                                 <Col md={6} className="mb-3">
                                                     <Form.Group>
-                                                        <Form.Label>{labels.volum_brut_paletizat}</Form.Label>
+                                                        <Form.Label>{t('material.grossPalletizedVolume')}</Form.Label>
                                                         <InputGroup>
-                                                            <Form.Control data-cy="input-volum_brut_paletizat" type="number" value={material.volum_brut_paletizat} onChange={ev => changeMaterial('volum_brut_paletizat', ev.target.value)} />
+                                                            <Form.Control data-cy="input-volum_brut_paletizat" type="number" value={material.volum_brut_paletizat} onChange={ev => changeMaterial('volum_brut_paletizat', ev.target.value)} disabled={isReadonly} />
                                                             <InputGroup.Text>m³</InputGroup.Text>
                                                         </InputGroup>
                                                     </Form.Group>
@@ -511,8 +516,8 @@ const MaterialView = () => {
                                             {/* observatii */}
                                             <Col md={12} className="mb-3">
                                                 <Form.Group>
-                                                    <Form.Label>{labels.observatii}</Form.Label>
-                                                    <Form.Control as="textarea" data-cy="input-observatii" value={material.observatii} onChange={ev => changeMaterial('observatii', ev.target.value)} />
+                                                    <Form.Label>{t('material.observations')}</Form.Label>
+                                                    <Form.Control as="textarea" data-cy="input-observatii" value={material.observatii} onChange={ev => changeMaterial('observatii', ev.target.value)} disabled={isReadonly} />
                                                 </Form.Group>
                                             </Col>
                                         </Row>
@@ -523,18 +528,18 @@ const MaterialView = () => {
                     </Col>
                     {/* Right Column: Components and QR Code */}
                     <Col xs={12} lg={6} className="px-2 py-1">
-                        <Card className="mb-2 shadow-sm">
+                        {!isNew && componente?.length > 0 && (<Card className="mb-2 shadow-sm">
                             <Card.Body>
-                                <Card.Title as="h3" className="mb-2">{labels.componente}</Card.Title>
+                                <Card.Title as="h3" className="mb-2">{t('material.components')}</Card.Title>
                                 {componente?.length === 0 ? (
-                                    <div className="text-muted">Nicio componenta adaugata.</div>
+                                    <div className="text-muted">{t('material.noComponentsAdded')}</div>
                                 ) : (
                                     <ListGroup variant="flush">
                                         {componente.filter(isMaterial).map((comp, index) => (
                                             <ListGroup.Item key={index} action onClick={() => navigate(`/material/${comp._id}`)} data-cy={`component-list-item-${comp._id}`}>
                                                 <div className="fw-bold">{comp.humanId}</div>
                                                 <div className="text-muted small">
-                                                    {MaterialMappings.getMaterialTypeLabel(comp.type)} • {MaterialMappings.getWoodSpeciesLabel(comp.specie)}
+                                                    {materialMappings.getMaterialTypeLabel(comp.type)} • {materialMappings.getWoodSpeciesLabel(comp.specie)}
                                                 </div>
                                             </ListGroup.Item>
                                         ))}
@@ -542,11 +547,11 @@ const MaterialView = () => {
                                 )}
                                 {/* QR code scanning for adding components is disabled */}
                             </Card.Body>
-                        </Card>
+                        </Card>)}
                         {!isNew && (
                             <Card className="mb-2">
                                 <Card.Body>
-                                    <Card.Title as="h3" className="mb-2">Etichetă QR</Card.Title>
+                                    <Card.Title as="h3" className="mb-2">{t('material.qrLabel')}</Card.Title>
                                     <div id="qrcode" className="mx-auto text-center">
                                         {labelImageUrl && (
                                             <img src={labelImageUrl} alt="Printable label" style={{ maxWidth: '100%' }} />
@@ -554,7 +559,7 @@ const MaterialView = () => {
                                     </div>
                                     <Button className="btn-default mt-2" onClick={handleDownload} size="sm" data-cy="download-qr-btn">
                                         <span className="me-1" role="img" aria-label="print">⎙</span>
-                                        Descarcă Etichetă
+                                        {t('material.downloadLabel')}
                                     </Button>
                                 </Card.Body>
                             </Card>

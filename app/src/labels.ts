@@ -1,3 +1,15 @@
+// DEPRECATED: Use useI18n hook instead
+// This file is kept for backward compatibility during migration
+import { useLegacyLabels } from './hooks/useLegacyLabels';
+
+// For backward compatibility, export a function that returns the labels
+export const getLabels = () => {
+  // This will only work inside a React component
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  return useLegacyLabels();
+};
+
+// Legacy static export (deprecated)
 const labels = {
   add: "Adauga",
   MaterialListView: "Materiale",

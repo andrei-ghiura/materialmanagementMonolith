@@ -5,7 +5,13 @@ const mongoose = require("mongoose");
 exports.getAllMaterials = async (req, res) => {
   try {
     // Build filter from query params
-    const filter = { deleted: false };
+    let filter = {};
+    if (req.query.showDeleted === "true") {
+      // Include deleted and non-deleted
+      // No filter on deleted field
+    } else {
+      filter.deleted = false;
+    }
     if (req.query.type) filter.type = req.query.type;
     if (req.query.specie) filter.specie = req.query.specie;
     if (req.query.state) filter.state = req.query.state;

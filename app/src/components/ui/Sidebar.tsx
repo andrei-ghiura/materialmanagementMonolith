@@ -4,14 +4,8 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import Button from 'react-bootstrap/Button';
 import Modal from 'react-bootstrap/Modal';
 import { BoxSeam, Gear, List as ListIcon, X } from 'react-bootstrap-icons';
+import useI18n from '../../hooks/useI18n';
 
-
-const navItems = [
-  { label: 'Adaugă Material', path: '/material', icon: <BoxSeam /> },
-  { label: 'Materiale', path: '/', icon: <BoxSeam /> },
-  { label: 'Prelucrare', path: '/processing', icon: <Gear /> },
-  { label: 'Setări', path: '/settings', icon: <Gear /> },
-];
 
 interface SidebarProps {
   width?: number;
@@ -21,8 +15,17 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ width = 220, collapsed = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
   const [showMobile, setShowMobile] = useState(false);
   const [forceCollapse, setForceCollapse] = useState(false);
+
+  // Dynamic navigation items with translations
+  const navItems = [
+    { labelKey: 'navigation.addMaterial', path: '/material', icon: <BoxSeam /> },
+    { labelKey: 'navigation.materials', path: '/', icon: <BoxSeam /> },
+    { labelKey: 'navigation.processing', path: '/processing', icon: <Gear /> },
+    { labelKey: 'navigation.settings', path: '/settings', icon: <Gear /> },
+  ];
 
   // Collapse sidebar if window is below 1200px (or any custom width)
   useEffect(() => {
@@ -53,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ width = 220, collapsed = false }) => 
               style={{ cursor: 'pointer', borderRadius: 8, marginBottom: 6, fontWeight: 500, fontSize: 16, background: isActive ? '#e9f5ff' : undefined, border: isActive ? '1px solid #339af0' : undefined }}
               className="d-flex align-items-center"
             >
-              <span className="me-2">{item.icon}</span> {item.label}
+              <span className="me-2">{item.icon}</span> {t(item.labelKey)}
             </ListGroup.Item>
           );
         })}
@@ -130,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ width = 220, collapsed = false }) => 
           <Button
             className="btn-transparent position-absolute top-0 end-0 m-2"
             style={{ borderRadius: '50%', width: 36, height: 36, zIndex: 400 }}
-            aria-label="Închide meniul"
+            aria-label={t('navigation.closeMenu')}
             onClick={() => setShowMobile(false)}
           >
             <X size={22} />
