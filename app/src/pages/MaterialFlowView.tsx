@@ -1,11 +1,4 @@
-interface MaterialWithAncestors extends Material {
-    ancestors?: Array<{ processing: Processing; material: MaterialWithAncestors }>;
-}
-
-interface Layer {
-    type: 'material' | 'processing';
-    nodes: (Material | Processing)[];
-}
+// Removed unused interfaces to fix lint errors
 import { Container, Alert } from 'react-bootstrap';
 import ReactFlow, {
     Background,
@@ -20,7 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { getAll, getMaterialFlow } from '../api/materials';
 
-import { Material } from '../types';
+// import { Material } from '../types'; // Removed unused import
 import { MaterialMappings } from '../config/materialMappings';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
@@ -139,7 +132,7 @@ const MaterialFlowView: React.FC = () => {
                     const nodeMap: { [id: string]: Node } = {};
                     const edgeList: Edge[] = [];
                     // Helper to add a node
-                    function addNode(id: string, type: string, data: any) {
+                    function addNode(id: string, type: string, data: Record<string, unknown>) {
                         if (!nodeMap[id]) {
                             nodeMap[id] = {
                                 id,
@@ -166,49 +159,55 @@ const MaterialFlowView: React.FC = () => {
                         });
                     }
                     // Recursive traversal for ancestors
-                    function traverseAncestors(node: any) {
+                    function traverseAncestors(node: unknown) {
                         if (!node) return;
-                        addNode(node._id, 'material', {
-                            label: MaterialMappings.getMaterialTypeLabel(node.type),
-                            ...node
+                        const matNode = node as Record<string, unknown>;
+                        addNode(matNode._id as string, 'material', {
+                            label: MaterialMappings.getMaterialTypeLabel(matNode.type as string),
+                            ...matNode
                         });
-                        if (node.ancestors && Array.isArray(node.ancestors)) {
-                            node.ancestors.forEach((ancestor) => {
-                                const proc = ancestor.processing;
-                                const mat = ancestor.material;
-                                addNode(proc._id, 'processing', {
+                        if (matNode.ancestors && Array.isArray(matNode.ancestors)) {
+                            (matNode.ancestors as unknown[]).forEach((ancestor) => {
+                                const ancestorObj = ancestor as Record<string, unknown>;
+                                const proc = ancestorObj.processing as Record<string, unknown>;
+                                const mat = ancestorObj.material as Record<string, unknown>;
+                                addNode(proc._id as string, 'processing', {
                                     label: `Processing: ${proc.processingTypeId}`,
                                     type: proc.processingTypeId,
                                     description: proc.description,
                                     date: proc.date
                                 });
-                                addEdge(proc._id, node._id);
-                                addNode(mat._id, 'material', {
-                                    label: MaterialMappings.getMaterialTypeLabel(mat.type),
+                                addEdge(proc._id as string, matNode._id as string);
+                                addNode(mat._id as string, 'material', {
+                                    label: MaterialMappings.getMaterialTypeLabel(mat.type as string),
                                     ...mat
                                 });
-                                addEdge(mat._id, proc._id);
+                                addEdge(mat._id as string, proc._id as string);
                                 traverseAncestors(mat);
                             });
                         }
                     }
                     // Recursive traversal for descendants
-                    function traverseDescendants(node: any) {
+                    function traverseDescendants(node: unknown) {
                         if (!node) return;
-                        addNode(node._id, 'material', {
-                            label: MaterialMappings.getMaterialTypeLabel(node.type),
-                            ...node
+                        const matNode = node as Record<string, unknown>;
+                        addNode(matNode._id as string, 'material', {
+                            label: MaterialMappings.getMaterialTypeLabel(matNode.type as string),
+                            ...matNode
                         });
-                        if (node.descendants && Array.isArray(node.descendants)) {
-                            node.descendants.forEach(({ processing, material }) => {
-                                addNode(processing._id, 'processing', {
+                        if (matNode.descendants && Array.isArray(matNode.descendants)) {
+                            (matNode.descendants as unknown[]).forEach((descendant) => {
+                                const descObj = descendant as Record<string, unknown>;
+                                const processing = descObj.processing as Record<string, unknown>;
+                                const material = descObj.material as Record<string, unknown>;
+                                addNode(processing._id as string, 'processing', {
                                     label: `Processing: ${processing.processingTypeId}`,
                                     type: processing.processingTypeId,
                                     description: processing.description,
                                     date: processing.date
                                 });
-                                addEdge(node._id, processing._id);
-                                addEdge(processing._id, material._id);
+                                addEdge(matNode._id as string, processing._id as string);
+                                addEdge(processing._id as string, material._id as string);
                                 traverseDescendants(material);
                             });
                         }
@@ -265,7 +264,7 @@ const MaterialFlowView: React.FC = () => {
                 })
                 .catch(() => setAlert('Nu s-a putut încărca fluxul materialului.'));
         }
-    }, [selectedMaterialId]);
+    }, [selectedMaterialId, setNodes, setEdges]);
     return (
         <Container fluid className="p-3">
             {alert && <Alert variant="danger" onClose={() => setAlert(null)} dismissible>{alert}</Alert>}

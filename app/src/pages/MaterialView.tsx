@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 
-import { useUiState } from '../components/ui/UiStateContext';
+import { useUiState } from '../components/ui/useUiState';
 import { useNavigate, useParams } from 'react-router-dom';
 import { deleteMaterial, save, update } from "../api/materials";
 import { Directory, Filesystem } from "@capacitor/filesystem";
@@ -46,8 +46,8 @@ const MaterialView = () => {
                     if (material) {
                         result.push(material);
                     }
-                } catch (error) {
-                    console.error(`Failed to fetch material with id ${comp}:`, error);
+                } catch {
+                    // Swallow error silently
                 }
             }
         }
@@ -88,9 +88,8 @@ const MaterialView = () => {
                     setMaterial(data);
                     setComponente(data.componente || []);
                     initialMaterialRef.current = data;
-                } catch (error: unknown) {
-                    console.error('Failed to fetch material:', error);
-
+                } catch {
+                    // Swallow error silently
                 }
             }
         }
@@ -235,8 +234,7 @@ const MaterialView = () => {
                     }
                 });
             }
-        } catch (error) {
-            console.error('Failed to save material:', error);
+        } catch {
             setAlert({
                 header: t('common.error'),
                 message: isNew ? t('material.actions.createError') : t('material.actions.updateError'),
@@ -321,7 +319,7 @@ const MaterialView = () => {
                 <b>{isNew ? t('common.add') : t('common.save')}</b>
             </Button>
         </>
-    ), [isNew, handleDelete, handleConfirm, handleNav, navigate, material._id, t]);
+    ), [isNew, handleDelete, handleConfirm, handleNav, navigate, material._id, material.deleted, t]);
 
     useEffect(() => {
         setFooterActions({ actionsLeft, actionsRight });

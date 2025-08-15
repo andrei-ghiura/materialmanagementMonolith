@@ -1,5 +1,6 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { UiStateContext } from './UiStateContextValue';
 
 export type Theme = 'light' | 'dark';
 
@@ -19,7 +20,6 @@ export type UiState = {
     // Add more UI state fields as needed
 };
 
-const UiStateContext = createContext<UiState | undefined>(undefined);
 
 export const UiStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,8 +54,5 @@ export const UiStateProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
 };
 
-export const useUiState = () => {
-    const ctx = useContext(UiStateContext);
-    if (!ctx) throw new Error('useUiState must be used within UiStateProvider');
-    return ctx;
-};
+export { UiStateContext };
+

@@ -6,7 +6,7 @@ import Offcanvas from 'react-bootstrap/Offcanvas';
 import Button from 'react-bootstrap/Button';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 // If you have a ThemeContext, import it. Otherwise, use a prop or fallback to a default.
-import { useUiState } from '../../components/ui/UiStateContext';
+import { useUiState } from '../../components/ui/useUiState';
 import useI18n from '../../hooks/useI18n';
 
 import React, { useState } from 'react';

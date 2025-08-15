@@ -13,6 +13,27 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Middleware to check DB connection for data endpoints
+function dbConnectionGuard(req, res, next) {
+  // Only guard data endpoints
+  const dataEndpoints = [
+    /^\/materials/,
+    /^\/api\/processings/,
+    /^\/processings/,
+    /^\/processing-types/,
+    /^\/materials\/process/,
+  ];
+  const isDataEndpoint = dataEndpoints.some((re) => re.test(req.path));
+  const mongoose = require("mongoose");
+  if (isDataEndpoint && mongoose.connection.readyState !== 1) {
+    return res
+      .status(500)
+      .json({ error: "Database connection not established" });
+  }
+  next();
+}
+app.use(dbConnectionGuard);
+
 // Swagger UI
 app.get("/api-docs.json", (req, res) => {
   res.setHeader("Content-Type", "application/json");

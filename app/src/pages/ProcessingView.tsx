@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useUiState } from '../components/ui/UiStateContext';
+import { useUiState } from '../components/ui/useUiState';
 import { Container, Form, Button, Modal, ListGroup, Alert, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaCheck, FaQrcode, FaSave } from 'react-icons/fa';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -52,7 +52,6 @@ const ProcessingView: React.FC = () => {
     const [materialSearchTerm, setMaterialSearchTerm] = useState('');
     const [selectedMaterials, setSelectedMaterials] = useState<Material[]>([]);
     const [materialInput, setMaterialInput] = useState('');
-    const [isProcessing, setIsProcessing] = useState(false);
     const [outputConfig, setOutputConfig] = useState({
         count: 1,
         type: '',
@@ -80,7 +79,7 @@ const ProcessingView: React.FC = () => {
             const response = await apiClient.get('/processing-types');
             setAllProcessingTypes(response.data);
         } catch {
-            console.error('Failed to load processing types');
+            // Swallow error silently
         }
     };
     useEffect(() => {
@@ -114,16 +113,16 @@ const ProcessingView: React.FC = () => {
                     (<Button
                         variant="success"
                         onClick={processMaterials}
-                        disabled={selectedMaterials.length === 0 || isProcessing || !outputConfig.processingType}
+                        disabled={selectedMaterials.length === 0 || !outputConfig.processingType}
                         data-cy="process-btn"
                     >
                         <FaSave className="me-2" />
-                        {isProcessing ? t('processing.processing') : t('processing.processMaterials')}
+                        {t('processing.processing')}
                     </Button>)
             )
         });
         return () => setFooterActions(null);
-    }, [currentStep, outputConfig.processingType, selectedMaterials, steps.length, t]);
+    }, [currentStep, outputConfig.processingType, selectedMaterials, steps.length, t, setFooterActions]);
 
     // Track available wood species from selected materials
     const availableWoodSpecies = selectedMaterials.reduce((species, material) => {
@@ -315,7 +314,6 @@ const ProcessingView: React.FC = () => {
             setAlert({ header: 'processing.invalidSpecieHeader', message: 'processing.invalidSpecieMessage', variant: 'danger' });
             return;
         }
-        setIsProcessing(true);
         try {
             const sourceIds = selectedMaterials.map(m => m._id);
             const apiConfig = {
@@ -337,8 +335,6 @@ const ProcessingView: React.FC = () => {
             });
         } catch {
             setAlert({ header: 'processing.processErrorHeader', message: 'processing.processErrorMessage', variant: 'danger' });
-        } finally {
-            setIsProcessing(false);
         }
     };
 

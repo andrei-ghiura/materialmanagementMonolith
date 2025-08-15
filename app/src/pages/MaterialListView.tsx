@@ -1,6 +1,6 @@
 // ...removed duplicate showDeleted declaration...
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
-import { useUiState } from '../components/ui/UiStateContext';
+import { useUiState } from '../components/ui/useUiState';
 import { useNavigate } from 'react-router-dom';
 import useI18n from '../hooks/useI18n';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
@@ -94,7 +94,7 @@ const MaterialListView: React.FC = () => {
       }
     }
     // Alert functionality removed
-  }, [navigate, setShowWebQrModal, t]);
+  }, [navigate, setShowWebQrModal]);
 
   const requestPermissions = async (): Promise<boolean> => {
     const { camera } = await BarcodeScanner.requestPermissions();
@@ -102,7 +102,7 @@ const MaterialListView: React.FC = () => {
   };
 
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     getAll({ showDeleted: showDeleted ? 'true' : undefined }).then((data) => {
       setMaterials(data);
       // Build filter options for autocomplete
@@ -121,11 +121,11 @@ const MaterialListView: React.FC = () => {
     }).catch(() => {
       // Handle load error silently
     });
-  };
+  }, [showDeleted]);
 
   useEffect(() => {
     loadData();
-  }, [showDeleted]);
+  }, [showDeleted, loadData]);
 
   // Initialize QR scanner when modal opens
   useEffect(() => {

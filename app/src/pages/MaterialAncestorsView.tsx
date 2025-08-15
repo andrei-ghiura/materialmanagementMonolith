@@ -24,28 +24,32 @@ const MaterialAncestorsView = () => {
         ];
 
         // Map ancestors to rows
-        const rows = ancestors.map((m: any) => ({
-            tip: m.tip || m.type || '-',
-            id: m.id || m._id || '-',
-            humanId: m.humanId || '-',
-            specie: m.specie || '-',
-            stare: m.state || '-',
-            cod_unic_aviz: m.cod_unic_aviz || '-',
-            data: m.data || '-',
-            apv: m.apv || '-',
-            lat: m.lat || '-',
-            log: m.log || '-',
-            nr_placuta_rosie: m.nr_placuta_rosie || '-',
-            lungime: m.lungime || '-',
-            diametru: m.diametru || '-',
-            volum_placuta_rosie: m.volum_placuta_rosie || '-',
-            volum_total: m.volum_total || '-',
-            volum_net_paletizat: m.volum_net_paletizat || '-',
-            volum_brut_paletizat: m.volum_brut_paletizat || '-',
-            nr_bucati: m.nr_bucati || '-',
-            observatii: m.observatii || '-',
-            componente: Array.isArray(m.componente) ? m.componente.length : '-',
-        }));
+        const rows = ancestors.map((m: unknown) => {
+            const mat = m as Record<string, unknown>;
+            return {
+                tip: mat.tip ?? mat.type ?? '-',
+                id: mat.id ?? mat._id ?? '-',
+                humanId: mat.humanId ?? '-',
+                specie: mat.specie ?? '-',
+                stare: mat.state ?? '-',
+                cod_unic_aviz: mat.cod_unic_aviz ?? '-',
+                data: mat.data ?? '-',
+                apv: mat.apv ?? '-',
+                lat: mat.lat ?? '-',
+                log: mat.log ?? '-',
+                nr_placuta_rosie: mat.nr_placuta_rosie ?? '-',
+                lungime: mat.lungime ?? '-',
+                diametru: mat.diametru ?? '-',
+                volum_placuta_rosie: mat.volum_placuta_rosie ?? '-',
+                volum_total: mat.volum_total ?? '-',
+                volum_net_paletizat: mat.volum_net_paletizat ?? '-',
+                volum_brut_paletizat: mat.volum_brut_paletizat ?? '-',
+                nr_bucati: mat.nr_bucati ?? '-',
+                observatii: mat.observatii ?? '-',
+                componente: Array.isArray(mat.componente) ? (mat.componente as unknown[]).length : '-',
+            };
+        });
+
 
         autoTable(pdf, {
             head: [columns.map(col => col.header)],
@@ -64,9 +68,13 @@ const MaterialAncestorsView = () => {
         async function fetchAncestors() {
             setLoading(true);
             try {
-                const result = await getAncestors(id);
-                setAncestors(result);
-            } catch (e) {
+                if (id) {
+                    const result = await getAncestors(id);
+                    setAncestors(result);
+                } else {
+                    setAncestors([]);
+                }
+            } catch {
                 setAncestors([]);
             }
             setLoading(false);

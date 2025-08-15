@@ -25,4 +25,5 @@ export interface Material {
     tip?: string;
     descriere?: string;
     state?: "received" | "processed" | "shipped";
+    deleted?: boolean;
 }

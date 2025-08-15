@@ -3,7 +3,7 @@ import React from 'react';
 // import Sidebar from './Sidebar';
 import GlobalHeader from './GlobalHeader';
 import GlobalFooter from './GlobalFooter';
-import { useUiState } from './UiStateContext';
+import { useUiState } from './useUiState';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { footerActions } = useUiState();

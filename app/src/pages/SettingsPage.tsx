@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useUiState } from '../components/ui/UiStateContext';
+import { useUiState } from '../components/ui/useUiState';
 import { Container, Row, Col, Card, Button, ListGroup } from 'react-bootstrap';
 import LanguageSwitcher from '../components/ui/LanguageSwitcher';
 import useI18n from '../hooks/useI18n';
