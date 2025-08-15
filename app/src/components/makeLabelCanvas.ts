@@ -50,7 +50,7 @@ export async function makeLabelCanvas(material: Material): Promise<HTMLCanvasEle
     ctx.textBaseline = 'middle';
     ctx.fillText(`${parsedData.humanId || ''}`, labelWidth / 2, headerHeight / 2);
     const qrTempCanvas = document.createElement('canvas');
-    new QRious({ element: qrTempCanvas, value: JSON.stringify({ id: parsedData.id }), size: qrSize, background: 'transparent', padding: 0 });
+    new QRious({ element: qrTempCanvas, value: parsedData._id, size: qrSize, background: 'transparent', padding: 0 });
     ctx.save();
     ctx.fillStyle = '#fff';
     const qrX = (labelWidth - qrSize) / 2;

@@ -3,8 +3,6 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useUiState } from '../components/ui/useUiState';
 import { useNavigate, useParams } from 'react-router-dom';
 import { deleteMaterial, save, update } from "../api/materials";
-import { Directory, Filesystem } from "@capacitor/filesystem";
-import { Capacitor } from '@capacitor/core';
 import useI18n from '../hooks/useI18n';
 import useMaterialMappings from '../hooks/useMaterialMappings';
 import { Material } from "../types";
@@ -20,15 +18,11 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import InputGroup from 'react-bootstrap/InputGroup';
 
 const MaterialView = () => {
-    // Dark mode logic: listen for changes and apply/remove dark class
-
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
     const { t } = useI18n();
     const materialMappings = useMaterialMappings();
-    // Alert state for react-bootstrap Modal
     const [alert, setAlert] = useState<{ header: string, message: string, buttons: { text: string }[], onDidDismiss?: () => void } | null>(null);
-
     const isMaterial = useCallback((component: string | Material): component is Material => {
         return typeof component === 'object' && component !== null && '_id' in component;
     }, []);
@@ -167,34 +161,15 @@ const MaterialView = () => {
 
     const downloadQRImage = async (canvas: HTMLCanvasElement, fileName: string) => {
         const dataUrl = canvas.toDataURL('image/png');
-
-        if (Capacitor.getPlatform() === 'web') {
-            // For web platform, create a download link
-            const link = document.createElement('a');
-            link.download = fileName;
-            link.href = dataUrl;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } else {
-            // For native platforms (Android), use Filesystem API
-            const base64Data = dataUrl.split(',')[1];
-            await Filesystem.writeFile({
-                path: fileName,
-                data: base64Data,
-                directory: Directory.Documents,
-                recursive: true,
-            });
-            setAlert({
-                header: t('common.success'),
-                message: t('material.actions.saveSuccess'),
-                buttons: [{ text: t('common.close') }]
-            });
-        }
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleConfirm = useCallback(async () => {
-        // Validate required fields
         if (!material.type) {
             setAlert({
                 header: t('material.actions.requiredField'),
@@ -601,7 +576,6 @@ const MaterialView = () => {
                     <Button className="btn-success" onClick={saveAndLeave}>Salvează și pleacă</Button>
                 </Modal.Footer>
             </Modal>
-            {/* QR code scanning for adding components is disabled */}
         </>
     );
 }
