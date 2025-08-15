@@ -1,14 +1,17 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUiState } from '../components/ui/useUiState';
-import { Container, Form, Button, Modal, ListGroup, Alert, InputGroup } from 'react-bootstrap';
+import { Container, Form, Button, Modal, ListGroup, InputGroup } from 'react-bootstrap';
 import { FaPlus, FaCheck, FaQrcode, FaSave } from 'react-icons/fa';
-import { Html5Qrcode } from 'html5-qrcode';
+// import { Html5Qrcode } from 'html5-qrcode';
+import { useQrScannerModal } from '../hooks/useQrScannerModal';
 import { Material } from '../types';
 import { getAll, getById, processMaterials as processAPI } from '../api/materials';
 import { MaterialMappings } from '../config/materialMappings';
 import MaterialItem from '../components/MaterialItem';
 import apiClient from '../api/apiClient';
 import useI18n from '../hooks/useI18n';
+import { useAlert } from '../hooks/useAlert';
 
 // Processing type interface (matches backend)
 interface ProcessingType {
@@ -26,26 +29,13 @@ interface ProcessingType {
     }>;
 }
 
-/*
-API Endpoint design prompt:
-Create a Node.js Express endpoint for processing materials. The endpoint should:
-1. Accept an array of source material IDs and a configuration for the new material(s)
-2. Retrieve all source materials from the database
-3. Calculate aggregated properties (volume, dimensions, etc.) based on source materials
-4. Create one or more new materials with the calculated properties
-5. Update the status of source materials to indicate they've been processed
-6. Return the newly created material(s)
-
-The endpoint should handle validation, error cases, and maintain data integrity.
-Include transaction support to ensure all operations succeed or fail together.
-*/
 
 const ProcessingView: React.FC = () => {
     const { t } = useI18n();
+    const navigate = useNavigate();
     const { setFooterActions } = useUiState();
-    const [alert, setAlert] = useState<{ header: string; message: string; params?: Record<string, unknown>; variant?: string; onClose?: () => void } | null>(null);
+    const showAlert = useAlert();
     const [navigateHome, setNavigateHome] = useState(false);
-    const [showQrModal, setShowQrModal] = useState(false);
     const [showMaterialSelectionModal, setShowMaterialSelectionModal] = useState(false);
     const [allMaterials, setAllMaterials] = useState<Material[]>([]);
     const [filteredMaterials, setFilteredMaterials] = useState<Material[]>([]);
@@ -60,28 +50,96 @@ const ProcessingView: React.FC = () => {
     });
     const [selectedProcessingType, setSelectedProcessingType] = useState<ProcessingType | null>(null);
     const [allProcessingTypes, setAllProcessingTypes] = useState<ProcessingType[]>([]);
-    // Wizard step state
     const [currentStep, setCurrentStep] = useState(0); // 0: type, 1: materials, 2: config
     const steps = [
         t('processing.stepType'),
         t('processing.stepMaterials'),
         t('processing.stepConfig')
     ];
-
-    // Helper functions to work with processing types
+    const availableWoodSpecies = selectedMaterials.reduce((species, material) => {
+        if (material.specie && !species.includes(material.specie)) {
+            species.push(material.specie);
+        }
+        return species;
+    }, [] as string[]);
     const getProcessingType = useCallback((id: string): ProcessingType | undefined => {
         return allProcessingTypes.find(p => p.id === id);
     }, [allProcessingTypes]);
 
-    // Load all processing types from backend
     const loadProcessingTypes = async () => {
         try {
             const response = await apiClient.get('/processing-types');
             setAllProcessingTypes(response.data);
         } catch {
-            // Swallow error silently
+            //ignore
         }
     };
+    const { open: openQrScanner, QrScannerModal } = useQrScannerModal();
+
+    const processMaterials = useCallback(async () => {
+        if (selectedMaterials.length === 0) {
+            showAlert({
+                title: t('processing.noMaterialsSelectedHeader'),
+                content: t('processing.noMaterialsSelectedMessage'),
+                actions: [{ text: 'OK' }],
+            });
+            return;
+        }
+        if (!outputConfig.processingType) {
+            showAlert({
+                title: t('processing.incompleteConfigHeader'),
+                content: t('processing.incompleteConfigTypeMessage'),
+                actions: [{ text: 'OK' }],
+            });
+            return;
+        }
+        if (!outputConfig.type) {
+            showAlert({
+                title: t('processing.incompleteConfigHeader'),
+                content: t('processing.incompleteConfigTypeResultMessage'),
+                actions: [{ text: 'OK' }],
+            });
+            return;
+        }
+        if (!outputConfig.specie) {
+            showAlert({
+                title: t('processing.incompleteConfigHeader'),
+                content: t('processing.incompleteConfigSpecieMessage'),
+                actions: [{ text: 'OK' }],
+            });
+            return;
+        }
+        if (!availableWoodSpecies.includes(outputConfig.specie)) {
+            showAlert({
+                title: t('processing.invalidSpecieHeader'),
+                content: t('processing.invalidSpecieMessage'),
+                actions: [{ text: 'OK' }],
+            });
+            return;
+        }
+        try {
+            const sourceIds = selectedMaterials.map(m => m._id);
+            const apiConfig = {
+                type: outputConfig.type,
+                specie: outputConfig.specie,
+                count: outputConfig.count,
+                processingTypeId: outputConfig.processingType
+            };
+            const result = await processAPI(sourceIds, apiConfig);
+            showAlert({
+                title: t('processing.successHeader'),
+                content: t('processing.successMessage', { message: result.message }),
+                actions: [{ text: 'OK', onClick: () => { setSelectedMaterials([]); setNavigateHome(true); } }],
+            });
+        } catch {
+            showAlert({
+                title: t('processing.processErrorHeader'),
+                content: t('processing.processErrorMessage'),
+                actions: [{ text: 'OK' }],
+            });
+        }
+    }, [selectedMaterials, outputConfig.processingType, outputConfig.type, outputConfig.specie, outputConfig.count, availableWoodSpecies, showAlert, t]);
+
     useEffect(() => {
         setFooterActions({
             actionsLeft: (
@@ -96,16 +154,22 @@ const ProcessingView: React.FC = () => {
                     <Button
                         variant="primary"
                         onClick={() => {
-                            // Step validation
                             if (currentStep === 0 && !outputConfig.processingType) {
-                                setAlert({ header: 'alerts.selectTypeHeader', message: 'alerts.selectTypeMessage', variant: 'warning' });
+                                showAlert({
+                                    title: t('alerts.selectTypeHeader'),
+                                    content: t('alerts.selectTypeMessage'),
+                                    actions: [{ text: 'OK' }],
+                                });
                                 return;
                             }
                             if (currentStep === 1 && selectedMaterials.length === 0) {
-                                setAlert({ header: 'alerts.addMaterialsHeader', message: 'alerts.addMaterialsMessage', variant: 'warning' });
+                                showAlert({
+                                    title: t('alerts.addMaterialsHeader'),
+                                    content: t('alerts.addMaterialsMessage'),
+                                    actions: [{ text: 'OK' }],
+                                });
                                 return;
                             }
-                            setAlert(null);
                             setCurrentStep(s => Math.min(steps.length - 1, s + 1));
                         }}
                     >{t('processing.next')}</Button>
@@ -117,76 +181,68 @@ const ProcessingView: React.FC = () => {
                         data-cy="process-btn"
                     >
                         <FaSave className="me-2" />
-                        {t('processing.processing')}
+                        {t('processing.processMaterials')}
                     </Button>)
             )
         });
         return () => setFooterActions(null);
-    }, [currentStep, outputConfig.processingType, selectedMaterials, steps.length, t, setFooterActions]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep, outputConfig]);
 
-    // Track available wood species from selected materials
-    const availableWoodSpecies = selectedMaterials.reduce((species, material) => {
-        if (material.specie && !species.includes(material.specie)) {
-            species.push(material.specie);
-        }
-        return species;
-    }, [] as string[]);
 
-    // Auto-select wood species if there's only one
+
     useEffect(() => {
-        if (availableWoodSpecies.length === 1 && outputConfig.specie !== availableWoodSpecies[0]) {
-            setOutputConfig(prev => ({
-                ...prev,
-                specie: availableWoodSpecies[0]
-            }));
+        if (
+            availableWoodSpecies.length === 1 &&
+            outputConfig.specie !== availableWoodSpecies[0]
+        ) {
+            setOutputConfig(prev => {
+                if (prev.specie === availableWoodSpecies[0]) return prev;
+                return { ...prev, specie: availableWoodSpecies[0] };
+            });
         }
-    }, [availableWoodSpecies, outputConfig.specie]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availableWoodSpecies]);
 
-    // Validate selected materials against processing type when materials change
     useEffect(() => {
         if (selectedMaterials.length > 0 && selectedProcessingType) {
-            // Check if all materials are compatible with the selected processing type
             const incompatibleMaterials = selectedMaterials.filter(material =>
                 !selectedProcessingType.sourceTypes.includes(material.type)
             );
 
             if (incompatibleMaterials.length > 0) {
-                // Remove incompatible materials and show alert
                 const compatibleMaterials = selectedMaterials.filter(material =>
                     selectedProcessingType.sourceTypes.includes(material.type)
                 );
 
                 setSelectedMaterials(compatibleMaterials);
 
-                setAlert({
-                    header: 'processing.incompatibleMaterialsHeader',
-                    message: 'processing.incompatibleMaterialsMessage',
-                    params: { count: incompatibleMaterials.length },
-                    variant: 'warning',
+                showAlert({
+                    title: t('processing.incompatibleMaterialsHeader'),
+                    content: t('processing.incompatibleMaterialsMessage', { count: incompatibleMaterials.length }),
+                    actions: [{ text: 'OK' }],
                 });
             }
 
-            // Check if all remaining materials are the same type
             if (selectedMaterials.length > 1) {
                 const firstType = selectedMaterials[0].type;
                 const allSameType = selectedMaterials.every(m => m.type === firstType);
 
                 if (!allSameType) {
-                    setAlert({
-                        header: 'processing.incompatibleTypesHeader',
-                        message: 'processing.incompatibleTypesMessage',
-                        variant: 'warning',
+                    showAlert({
+                        title: t('processing.incompatibleTypesHeader'),
+                        content: t('processing.incompatibleTypesMessage'),
+                        actions: [{ text: 'OK' }],
                     });
                 }
             }
         }
-    }, [selectedMaterials, selectedProcessingType]);
+    }, [selectedMaterials, selectedProcessingType, showAlert, t]);
     useEffect(() => {
         if (outputConfig.processingType) {
             const processingType = getProcessingType(outputConfig.processingType);
             setSelectedProcessingType(processingType || null);
 
-            // Auto-set output material type based on processing type
             if (processingType) {
                 setOutputConfig(prev => ({
                     ...prev,
@@ -200,21 +256,28 @@ const ProcessingView: React.FC = () => {
         }
     }, [outputConfig.processingType, selectedMaterials, getProcessingType]);
 
-    const qrRef = useRef<HTMLDivElement>(null);
-    const html5QrInstance = useRef<Html5Qrcode | null>(null);
-
-    // Load all materials and processing types on mount
+    const loadMaterials = useCallback(async () => {
+        try {
+            const materials = await getAll();
+            setAllMaterials(materials);
+            setFilteredMaterials(materials);
+        } catch {
+            showAlert({
+                title: t('processing.loadMaterialsHeader'),
+                content: t('processing.loadMaterialsMessage'),
+                actions: [{ text: 'OK' }],
+            });
+        }
+    }, [showAlert, t]);
     useEffect(() => {
         loadMaterials();
         loadProcessingTypes();
-    }, []);
+    }, [loadMaterials]);
 
-    // Filter materials whenever the search term changes or processing type changes
     useEffect(() => {
         if (allMaterials.length > 0) {
             let materialsToFilter = allMaterials;
 
-            // If a processing type is selected, filter by valid source types
             if (selectedProcessingType) {
                 materialsToFilter = allMaterials.filter(material =>
                     selectedProcessingType.sourceTypes.includes(material.type)
@@ -235,26 +298,23 @@ const ProcessingView: React.FC = () => {
             }
         }
     }, [materialSearchTerm, allMaterials, selectedProcessingType]);
-
-    const loadMaterials = async () => {
-        try {
-            const materials = await getAll();
-            setAllMaterials(materials);
-            setFilteredMaterials(materials);
-        } catch {
-            setAlert({ header: 'processing.loadMaterialsHeader', message: 'processing.loadMaterialsMessage', variant: 'danger' });
-        }
-    };
-
     const addMaterialById = async (id: string) => {
         setMaterialInput('');
         try {
             if (!selectedProcessingType) {
-                setAlert({ header: 'processing.selectTypeHeader', message: 'processing.selectTypeMessage', variant: 'warning' });
+                showAlert({
+                    title: t('processing.selectTypeHeader'),
+                    content: t('processing.selectTypeMessage'),
+                    actions: [{ text: 'OK' }],
+                });
                 return;
             }
             if (selectedMaterials.some(m => m._id === id || m.humanId === id)) {
-                setAlert({ header: 'processing.materialAlreadyAddedHeader', message: 'processing.materialAlreadyAddedMessage', variant: 'info' });
+                showAlert({
+                    title: t('processing.materialAlreadyAddedHeader'),
+                    content: t('processing.materialAlreadyAddedMessage'),
+                    actions: [{ text: 'OK' }],
+                });
                 return;
             }
             let material = allMaterials.find(m => m.id === id || m.humanId === id);
@@ -263,104 +323,47 @@ const ProcessingView: React.FC = () => {
             }
             if (material) {
                 if (!selectedProcessingType.sourceTypes.includes(material.type)) {
-                    setAlert({ header: 'processing.materialIncompatibleHeader', message: 'processing.materialIncompatibleMessage', params: { type: material.type, processing: selectedProcessingType.label, accepted: selectedProcessingType.sourceTypes.join(', ') }, variant: 'danger' });
+                    showAlert({
+                        title: t('processing.materialIncompatibleHeader'),
+                        content: t('processing.materialIncompatibleMessage', { type: material.type, processing: selectedProcessingType.label, accepted: selectedProcessingType.sourceTypes.join(', ') }),
+                        actions: [{ text: 'OK' }],
+                    });
                     return;
                 }
                 if (selectedMaterials.length > 0 && selectedMaterials[0].type !== material.type) {
-                    setAlert({ header: 'processing.differentTypesHeader', message: 'processing.differentTypesMessage', variant: 'danger' });
+                    showAlert({
+                        title: t('processing.differentTypesHeader'),
+                        content: t('processing.differentTypesMessage'),
+                        actions: [{ text: 'OK' }],
+                    });
                     return;
                 }
                 setSelectedMaterials(prev => [...prev, material]);
             } else {
-                setAlert({ header: t('messages.materialNotFound'), message: t('messages.materialNotFoundMessage'), variant: 'danger' });
+                showAlert({
+                    title: t('messages.materialNotFound'),
+                    content: t('messages.materialNotFoundMessage'),
+                    actions: [{ text: 'OK' }],
+                });
             }
         } catch {
-            setAlert({ header: 'processing.addMaterialErrorHeader', message: 'processing.addMaterialErrorMessage', variant: 'danger' });
+            showAlert({
+                title: t('processing.addMaterialErrorHeader'),
+                content: t('processing.addMaterialErrorMessage'),
+                actions: [{ text: 'OK' }],
+            });
         }
     };
-
-    const handleInputKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && materialInput) {
-            addMaterialById(materialInput);
-        }
-    };
-
     const removeMaterial = (index: number) => {
         setSelectedMaterials(prev => prev.filter((_, i) => i !== index));
     };
-
-    const handleQrScan = async () => {
-        setShowQrModal(true);
-    };
-
-    const processMaterials = async () => {
-        if (selectedMaterials.length === 0) {
-            setAlert({ header: 'processing.noMaterialsSelectedHeader', message: 'processing.noMaterialsSelectedMessage', variant: 'warning' });
-            return;
-        }
-        if (!outputConfig.processingType) {
-            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigTypeMessage', variant: 'warning' });
-            return;
-        }
-        if (!outputConfig.type) {
-            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigTypeResultMessage', variant: 'warning' });
-            return;
-        }
-        if (!outputConfig.specie) {
-            setAlert({ header: 'processing.incompleteConfigHeader', message: 'processing.incompleteConfigSpecieMessage', variant: 'warning' });
-            return;
-        }
-        if (!availableWoodSpecies.includes(outputConfig.specie)) {
-            setAlert({ header: 'processing.invalidSpecieHeader', message: 'processing.invalidSpecieMessage', variant: 'danger' });
-            return;
-        }
-        try {
-            const sourceIds = selectedMaterials.map(m => m._id);
-            const apiConfig = {
-                type: outputConfig.type,
-                specie: outputConfig.specie,
-                count: outputConfig.count,
-                processingTypeId: outputConfig.processingType
-            };
-            const result = await processAPI(sourceIds, apiConfig);
-            setAlert({
-                header: 'processing.successHeader',
-                message: 'processing.successMessage',
-                params: { message: result.message },
-                variant: 'success',
-                onClose: () => {
-                    setSelectedMaterials([]);
-                    setNavigateHome(true);
-                }
-            });
-        } catch {
-            setAlert({ header: 'processing.processErrorHeader', message: 'processing.processErrorMessage', variant: 'danger' });
-        }
-    };
-
-    const closeQrModal = async () => {
-        setShowQrModal(false);
-        if (html5QrInstance.current) {
-            try {
-                await html5QrInstance.current.stop();
-            } catch {
-                // ignore
-            }
-            html5QrInstance.current = null;
-        }
-    };
-
-
-    // Navigation after success
     useEffect(() => {
         if (navigateHome) {
-            window.location.href = '/';
+            navigate('/');
         }
-    }, [navigateHome]);
-
+    }, [navigateHome, navigate]);
     return (
         <Container>
-            {/* Wizard Progress Bar */}
             <div className="mb-4">
                 <div className="d-flex align-items-center">
                     {steps.map((step, idx) => (
@@ -371,15 +374,6 @@ const ProcessingView: React.FC = () => {
                     ))}
                 </div>
             </div>
-
-            {alert && (
-                <Alert variant={alert.variant || 'info'} dismissible onClose={() => { if (alert.onClose) alert.onClose(); setAlert(null); }}>
-                    <strong>{t(alert.header)}</strong>
-                    <div>{t(alert.message, alert.params)}</div>
-                </Alert>
-            )}
-
-            {/* Step 1: Processing Type Selection */}
             {currentStep === 0 && (
                 <>
                     {allProcessingTypes.length === 0 ? (
@@ -413,8 +407,6 @@ const ProcessingView: React.FC = () => {
                     )}
                 </>
             )}
-
-            {/* Step 2: Material Selection */}
             {currentStep === 1 && selectedProcessingType && (
                 <>
                     <Form.Group className="mb-2">
@@ -422,13 +414,12 @@ const ProcessingView: React.FC = () => {
                             <Form.Control
                                 value={materialInput}
                                 onChange={e => setMaterialInput(e.target.value)}
-                                onKeyPress={handleInputKeyPress}
                                 placeholder={t('processing.addMaterialPlaceholder')}
                             />
                             <Button variant="primary" onClick={() => setShowMaterialSelectionModal(true)} data-cy="add-material-by-id-btn">
                                 <FaPlus />
                             </Button>
-                            <Button variant="outline-secondary" onClick={handleQrScan} data-cy="scan-qr-btn">
+                            <Button variant="outline-secondary" onClick={openQrScanner} data-cy="scan-qr-btn">
                                 <FaQrcode />
                             </Button>
                         </InputGroup>
@@ -455,8 +446,6 @@ const ProcessingView: React.FC = () => {
                     )}
                 </>
             )}
-
-            {/* Step 3: Output Configuration */}
             {currentStep === 2 && selectedProcessingType && selectedMaterials.length > 0 && (
                 <>
                     <h5 className="mt-4">{t('processing.stepConfigTitle')}</h5>
@@ -507,25 +496,12 @@ const ProcessingView: React.FC = () => {
                 </>
             )}
 
-            {/* ...existing code... */}
+            <QrScannerModal onScan={async (value: string) => {
+                if (value) {
+                    await addMaterialById(value);
+                }
+            }} />
 
-            {/* QR Scanner Modal */}
-            <Modal show={showQrModal} onHide={closeQrModal} centered size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>{t('processing.qrModalTitle')}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <div className="d-flex flex-column align-items-center justify-content-center" style={{ minHeight: 350 }}>
-                        <div
-                            id="web-qr-reader"
-                            ref={qrRef}
-                            style={{ width: 350, height: 350, background: 'black', borderRadius: 12, overflow: 'hidden' }}
-                        ></div>
-                    </div>
-                </Modal.Body>
-            </Modal>
-
-            {/* Material Selection Modal */}
             <Modal show={showMaterialSelectionModal} onHide={() => setShowMaterialSelectionModal(false)} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>{t('processing.selectMaterial')}</Modal.Title>
@@ -568,9 +544,4 @@ const ProcessingView: React.FC = () => {
         </Container>
     );
 }
-
-// Set footer actions for navigation
-// (must be inside the component, but before return)
-// Move this above the return statement
-
 export default ProcessingView;

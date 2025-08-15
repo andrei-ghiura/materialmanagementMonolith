@@ -18,6 +18,7 @@ import './theme/buttonTypes.css';
 import './i18n';
 
 import { UiStateProvider } from './components/ui/UiStateContext';
+import { AlertProvider } from './components/ui/AlertProvider';
 
 
 const App: React.FC = () => {
@@ -46,7 +47,9 @@ const App: React.FC = () => {
 
 const AppWithUiState: React.FC = () => (
   <UiStateProvider>
-    <App />
+    <AlertProvider>
+      <App />
+    </AlertProvider>
   </UiStateProvider>
 );
 
